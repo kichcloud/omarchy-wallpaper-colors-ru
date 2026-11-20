@@ -25,9 +25,11 @@ printf '%s\n' "$mode" >"$ST/style"
 omarchy-bar background "$bg" >/dev/null 2>&1 || true
 T=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr
 rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
-omarchy-theme-set-glass >/dev/null 2>&1 || true
 src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
 [[ -f $src ]] && cp "$src" "$T/$(basename "$src")"
+# Важно: сначала тумблер, потом вызов. Иначе omarchy-theme-set-glass видит
+# GLASSY=false и снимает blur=yes/alpha из foot.ini — размытие исчезает.
+omarchy-theme-set-glass >/dev/null 2>&1 || true
 
 omarchy plugin enable "$osd_on" >/dev/null 2>&1 || true
 omarchy plugin disable "$osd_off" >/dev/null 2>&1 || true
