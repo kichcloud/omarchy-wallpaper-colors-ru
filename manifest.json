@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "kich.wallpaper-colors-ru",
   "name": "Wallpaper Colors RU",
-  "version": "2.1.0",
-  "author": "Aditya Miskin, kichcloud (fork)",
-  "license": "MIT",
-  "description": "Перекрашивает текущую тему Omarchy по цветам обоев через matugen. Добавлен ручной выбор режима (Авто/Тёмная/Светлая) и русский интерфейс.",
+  "version": "3.0.0",
+  "author": "Aditya Miskin, Jean Alvarado, kichcloud (merge)",
+  "license": "MIT / GPL-3.0-or-later",
+  "description": "Перекрашивает тему Omarchy и курсор по цветам обоев. Русский интерфейс, ручной выбор режима, встроенный перекрашиватель курсора.",
   "kinds": [
     "service",
     "bar-widget"

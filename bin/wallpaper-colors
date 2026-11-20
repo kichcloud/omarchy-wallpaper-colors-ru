@@ -41,7 +41,11 @@ from_git()   { [[ ! -L $themes/$theme && -d $themes/$theme/.git ]]; }
 is_off()     { grep -qxF "$theme" "$off"; }
 ours()       { [[ -f $1 ]] && [[ $(head -n1 "$1") == "$marker" ]]; }
 picked()     { jq -r --arg i "$image" '.[$i] // 0' "$picks" 2>/dev/null || echo 0; }
-reapply()    { OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null; }
+reapply() {
+  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null
+  # Курсор перекрашивается тут же, без отдельного плагина и хуков.
+  python3 "$here/cursor-recolor" apply >/dev/null 2>&1 || true
+}
 
 # Принудительный режим из $modef, иначе порог яркости 0.6.
 mode_for() {

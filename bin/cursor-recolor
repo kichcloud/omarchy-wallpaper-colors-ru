@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Перекрашивает курсор Bibata в цвет активной темы Omarchy и применяет его."""
+import ctypes, fcntl, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time, tomllib
+from pathlib import Path
+
+P = Path(__file__).resolve().parent.parent   # корень общего плагина
+A = P / "cursor"                            # ассеты и движок курсора
+STATE = Path.home() / ".local/state/omarchy/wallpaper-colors/cursor"
+CONFIG = STATE / "config.json"
+COLORS = Path.home() / ".local/state/omarchy/current/theme/colors.toml"
+NAME, STAMP, FORMAT = "Omarchy-Accent", ".cursor-accent-stamp", 3
+SIZE = os.environ.get("HYPRCURSOR_SIZE", "24")
+INSTALL = Path.home() / f".local/share/icons/{NAME}"
+TARGETS = {"modern": "Bibata-Modern-Classic", "original": "Bibata-Original-Classic"}
+DEFAULT = {"mode": "theme", "shape": "modern", "fixed_color": "#F25623"}
+HYPR_SCALES, X11_SCALES = (1, 1.25, 1.5, 1.75, 2, 2.5, 3), (1, 1.5, 2)
+# В SVG помимо трёх плейсхолдеров есть жёстко заданные цвета (значки ссылки,
+# копирования, человека и т.д.). Без их подмены эти курсоры рисуются «чужими»
+# цветами — именно так выглядит лишний тёмный оттенок в Steam.
+EXTRA = {
+    "#606060": "body", "#2C2C2C": "body",
+    "#06B231": "accent", "#5F3BE4": "accent", "#179DD8": "accent",
+    "#0A6857": "accent", "#F27400": "accent", "#FCB813": "accent",
+    "#F05024": "accent", "#7EBA41": "accent", "#32A0DA": "accent",
+    "#FDBE2A": "accent", "#F1613A": "accent", "#96C865": "accent",
+    "#4FADDF": "accent", "#FE0000": "accent",
+    'fill="black"': "body_black", 'fill="white"': "fg_fill",
+}
+
+
+def cfg():
+    try:
+        return {**DEFAULT, **json.loads(CONFIG.read_text())}
+    except (OSError, ValueError):
+        return dict(DEFAULT)
+
+
+def out(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=5, check=True).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def ver(text):
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
+    return tuple(map(int, m.groups())) if m else None
+
+
+def need_svg():
+    """SVG только если и запущенный, и установленный Hyprland >= 0.57."""
+    running = ver(out(["hyprctl", "version", "-j"]))
+    installed = ver(out(["pacman", "-Q", "hyprland"]))
+    return None not in (running, installed) and (running, installed) >= ((0, 57, 0),) * 2
+
+
+def sizes(scales):
+    base = max(8, int(SIZE)) if SIZE.isdigit() else 24
+    return sorted({round(base * s) for s in scales})
+
+
+def stamp_for(target, render, fmt, sz):
+    # Хэш только того, что реально влияет на результат: цвета, цель, формат,
+    # размеры и несколько ключевых файлов. Обход сотен SVG на каждом запуске
+    # не нужен — смена ассетов приходит вместе с обновлением manifest/кода.
+    h = hashlib.sha256(json.dumps([FORMAT, target, render, fmt, sz], sort_keys=True).encode())
+    for f in (P / "bin/cursor-recolor", P / "manifest.json", A / "config/render.json",
+              A / "config/build.toml", A / "config/build.right.toml", A / "src/build_theme.py"):
+        h.update(f.read_bytes())
+    return h.hexdigest() + "\n"
+
+
+def hypr_on():
+    try:
+        return bool(json.loads(out(["hyprctl", "getoption", "cursor:enable_hyprcursor", "-j"])).get("bool"))
+    except (ValueError, AttributeError):
+        return None
+
+
+def apply():
+    subprocess.run(["hyprctl", "setcursor", NAME, SIZE], check=False, stdout=subprocess.DEVNULL)
+    # XWayland кэширует X-курсор по имени. После смены формы (например, курсор
+    # растягивания окна) он может вернуть стоковый left_ptr вместо темы.
+    # xsetroot заставляет X-сервер перечитать тему сразу.
+    subprocess.run(["xsetroot", "-cursor_name", "left_ptr"], check=False,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if hypr_on() is False:  # hyprcursor включается позже, setcursor надо повторить
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--reapply"],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+        print("cursor-accent: hyprcursor выключен, повторим позже")
+
+
+def reapply(timeout=60):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        on = hypr_on()
+        if on is None:
+            return
+        if on:
+            subprocess.run(["hyprctl", "setcursor", NAME, SIZE], check=False, stdout=subprocess.DEVNULL)
+            return
+        time.sleep(.5)
+
+
+def exchange(a, b):
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.renameat2(-100, os.fsencode(a), -100, os.fsencode(b), 2) != 0:
+        e = ctypes.get_errno()
+        raise OSError(e, os.strerror(e), str(a))
+
+
+def swap(new, live):
+    """Атомарно подменить каталог темы, не показывая полпустого состояния."""
+    live.parent.mkdir(parents=True, exist_ok=True)
+    if not live.exists():
+        return new.rename(live)
+    try:
+        exchange(new, live)
+    except OSError:  # нет RENAME_EXCHANGE — два rename
+        old = new.with_name(new.name + ".old")
+        shutil.rmtree(old, ignore_errors=True)
+        live.rename(old)
+        new.rename(live)
+        new = old
+    shutil.rmtree(new, ignore_errors=True)
+
+
+def build(target, render, fmt, sz, stamp):
+    """Собирает тему во временном каталоге STATE и меняет её с установленной."""
+    with tempfile.TemporaryDirectory(prefix="build-", dir=STATE) as td:
+        b = Path(td)
+        (b / "config").mkdir()
+        for sub in ("src", "svg"):
+            (b / sub).symlink_to(A / sub)
+        (b / "config/render.json").write_text(json.dumps(render))
+        for f in ("build.toml", "build.right.toml"):
+            (b / "config" / f).symlink_to(A / "config" / f)
+        subprocess.run(
+            ["./src/build_theme.py", "--theme", target, "--out-dir", "out",
+             "--hypr-sizes", ",".join(map(str, sz["hypr"])) if fmt == "png" else "",
+             "--x11-sizes", ",".join(map(str, sz["x11"]))],
+            cwd=b, check=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+        new = b / "out" / target
+        (new / "index.theme").write_text(f"[Icon Theme]\nName={NAME}\nInherits=Adwaita\n")
+        (new / STAMP).write_text(stamp)
+        swap(new, INSTALL)
+
+
+def update_config(args):
+    """Обрабатывает команды CLI; возвращает True, если это была команда."""
+    c = cfg()
+    cmd = args[0] if args else ""
+    if cmd == "follow":
+        c["mode"] = "theme"
+    elif cmd == "default":
+        c["mode"] = "off"
+    elif cmd == "fixed":
+        if len(args) < 2:
+            raise SystemExit("использование: cursor-accent fixed '#rrggbb'")
+        c.update(mode="fixed", fixed_color=args[1])
+    elif cmd == "shape":
+        if not args[1:] or args[1] not in ("modern", "original"):
+            raise SystemExit("использование: cursor-accent shape modern|original")
+        c["shape"] = args[1]
+    else:
+        return None
+    STATE.mkdir(parents=True, exist_ok=True)
+    CONFIG.write_text(json.dumps(c))
+    return c
+
+
+def main():
+    if sys.argv[1:] == ["--reapply"]:
+        return reapply()
+    if sys.argv[1:2] == ["status"]:
+        return print(json.dumps(cfg(), indent=2))
+    c = update_config(sys.argv[1:]) or cfg()
+    if c["mode"] == "off":
+        subprocess.run(["hyprctl", "setcursor", "default", SIZE], check=False, stdout=subprocess.DEVNULL)
+        return print("cursor-accent: системный курсор по умолчанию")
+
+    target = TARGETS.get(c["shape"], TARGETS["modern"])
+    t = {}
+    if c["mode"] == "fixed":
+        body = watch = "#171717"
+        accent = c["fixed_color"]
+    else:
+        try:
+            t = tomllib.loads(COLORS.read_text())
+        except OSError:
+            t = {}
+        accent = t.get("accent", "#F25623")
+        body = t.get("dark_background") or t.get("background") or "#171717"
+        # Один тёмный оттенок вместо двух: чистый чёрный из darker_background
+        # не встречается на видимых поверхностях темы и выглядит лишним в X11.
+        watch = body
+
+    render = json.loads((A / "config/render.json").read_text())
+    for i, color in enumerate((body, accent, watch)):
+        render[target]["colors"][i]["replace"] = color
+    fg = t.get("foreground", "#FFFFFF")
+    palette = {"body": body, "accent": accent,
+               "body_black": f'fill="{body}"', "fg_fill": f'fill="{fg}"'}
+    render[target]["colors"] += [
+        {"match": match, "replace": palette[role]} for match, role in EXTRA.items()
+    ]
+    fmt = "svg" if need_svg() else "png"
+    sz = {"hypr": sizes(HYPR_SCALES), "x11": sizes(X11_SCALES)}
+    stamp = stamp_for(target, render, fmt, sz)
+
+    STATE.mkdir(parents=True, exist_ok=True)
+    with (STATE / ".lock").open("w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        current = (INSTALL / STAMP).is_file() and (INSTALL / STAMP).read_text() == stamp
+        if current and (INSTALL / "manifest.hl").is_file() and (INSTALL / "cursors/left_ptr").exists():
+            apply()
+            print("cursor-accent: уже актуально, применено повторно")
+            return
+        build(target, render, fmt, sz, stamp)
+        apply()
+        print(f"cursor-accent: применено {NAME} ({target}, {fmt}), размер {SIZE}")
+
+
+if __name__ == "__main__":
+    main()

@@ -10,6 +10,7 @@ Item {
   property var shell: null
 
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
+  readonly property string cursorBin: decodeURIComponent(String(Qt.resolvedUrl("bin/cursor-recolor")).replace(/^file:\/\//, ""))
   property string lastBackground: ""
   property bool pending: false
 
@@ -19,6 +20,14 @@ Item {
       return
     }
     syncProc.running = true
+  }
+
+  // Курсор один раз при загрузке оболочки: после перезапуска Hyprland забывает его.
+  Component.onCompleted: cursorProc.running = true
+  Process {
+    id: cursorProc
+    running: false
+    command: ["python3", root.cursorBin, "apply"]
   }
 
   Process {
