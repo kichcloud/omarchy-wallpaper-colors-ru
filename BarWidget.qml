@@ -90,7 +90,7 @@ Panel {
   KeyboardPanel {
     id: panel
     anchorItem: button; owner: root; bar: root.bar; open: root.opened; focusTarget: keys
-    contentWidth: panel.fittedContentWidth(Style.space(260))
+    contentWidth: panel.fittedContentWidth(Style.space(220))
     contentHeight: panel.fittedContentHeight(col.implicitHeight)
 
     PanelKeyCatcher {
@@ -108,7 +108,7 @@ Panel {
     Column {
       id: col
       anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-      spacing: Style.space(10)
+      spacing: Style.space(8)
 
       PanelSectionHeader { text: "Акцент"; foreground: root.fg; fontFamily: root.fontFamily }
 
@@ -125,37 +125,26 @@ Panel {
         text: root.error !== "" ? root.error : root.applying ? "Применяем…" : "Читаем обои…"
       }
 
-      Repeater {
-        model: root.colors.length ? root.rows : []
-        Rectangle {
-          required property var modelData; required property int index
-          readonly property bool current: index === root.activeRow
-          readonly property bool hot: (root.cursorActive && root.cursor === index) || mouse.containsMouse
-          width: col.width; height: Style.space(36); radius: Style.cornerRadius
-          color: hot ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .08) : "transparent"
-          border.width: current ? Math.max(1, Style.space(2)) : 0
-          border.color: modelData.color || root.fg
-
+      Row {
+        width: col.width
+        spacing: Style.space(10)
+        Repeater {
+          model: root.colors.length ? root.rows : []
           Rectangle {
-            id: swatch
-            x: Style.space(10); anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(20); height: width; radius: width / 2
+            required property var modelData; required property int index
+            readonly property bool current: index === root.activeRow
+            readonly property bool hot: (root.cursorActive && root.cursor === index) || mouse.containsMouse
+            width: Style.space(28); height: width; radius: width / 2
             color: modelData.color || "transparent"
-            border.width: modelData.color ? 0 : 1; border.color: root.fg
-          }
-          T {
-            anchors.left: swatch.right; anchors.leftMargin: Style.space(12); anchors.verticalCenter: parent.verticalCenter
-            text: modelData.name; font.pixelSize: Style.font.body; font.bold: current
-          }
-          T {
-            anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter
-            text: current ? "✓" : (modelData.color || root.theme)
-            opacity: current ? 1 : .5; font.pixelSize: Style.font.bodySmall
-          }
-          MouseArea {
-            id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onEntered: { root.cursorActive = true; root.cursor = index }
-            onClicked: root.pick(modelData.index)
+            border.width: current ? Math.max(1, Style.space(2)) : (modelData.color ? 0 : 1)
+            border.color: root.fg
+            opacity: hot || current ? 1 : .85
+            antialiasing: true
+            MouseArea {
+              id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+              onEntered: { root.cursorActive = true; root.cursor = index }
+              onClicked: root.pick(modelData.index)
+            }
           }
         }
       }
@@ -168,7 +157,7 @@ Panel {
           Rectangle {
             required property var modelData
             readonly property bool current: root.mode === modelData.id
-            width: (col.width - Style.space(12)) / 3; height: Style.space(32); radius: Style.cornerRadius
+            width: (col.width - Style.space(12)) / 3; height: Style.space(28); radius: Style.cornerRadius
             color: current ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14) : "transparent"
             border.width: current ? 1 : 0; border.color: root.fg
             T {
