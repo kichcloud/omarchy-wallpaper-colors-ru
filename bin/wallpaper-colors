@@ -1,166 +1,128 @@
 #!/bin/bash
-# Usage: wallpaper-colors [sync | sources | pick <index> | reset]
+# Перекрашивает активную тему Omarchy по цветам обоев.
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
-current=~/.local/state/omarchy/current
-themes=~/.config/omarchy/themes
 state=~/.local/state/omarchy/wallpaper-colors
+cur=~/.local/state/omarchy/current
+themes=~/.config/omarchy/themes
 picks=$state/picks.json
 off=$state/off
+modef=$state/mode
 backups=$state/backups
 marker="# Written by the Wallpaper Colors plugin. Choose Theme default in its bar popup to remove it."
-tmp=""
-mkdir -p "$state"
-touch "$off"
-trap '[[ -n $tmp ]] && rm -f "$tmp"' EXIT
+tmp=
+mkdir -p "$state"; touch "$off"
+trap '[[ $tmp ]] && rm -f "$tmp"' EXIT
 
-require_matugen() {
+need_matugen() {
   command -v matugen >/dev/null && return
-  local marker=${XDG_RUNTIME_DIR:-/tmp}/wallpaper-colors-matugen-missing
-  if [[ ! -e $marker ]]; then
-    touch "$marker"
+  local m=${XDG_RUNTIME_DIR:-/tmp}/wallpaper-colors-matugen-missing
+  [[ -e $m ]] || {
+    touch "$m"
     omarchy-notification-send -u critical "Wallpaper Colors needs matugen" "Install matugen from the Arch extra repository"
-  fi
-  echo "matugen is not installed" >&2
-  exit 1
+  }
+  echo "matugen is not installed" >&2; exit 1
 }
 
-# Sets $theme and $image together; `theme set` swaps the theme dir and the background link under one lock.
+# Оба значения читаются под одной блокировкой с omarchy theme set.
 read_current() {
-  exec 8>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-theme-set.lock"
-  flock 8
-  theme=$(<"$current/theme.name")
-  image=$(readlink -e "$current/background")
-  exec 8>&-
-
-  # current/theme holds copies, so key picks by the theme's own file to keep them apart across themes.
-  if [[ $image == "$current/theme/"* ]]; then
+  exec 8>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-theme-set.lock"; flock 8
+  theme=$(<"$cur/theme.name"); image=$(readlink -e "$cur/background"); exec 8>&-
+  if [[ $image == "$cur/theme/"* ]]; then
     local root
     for root in "$themes" /usr/share/omarchy/themes; do
-      if [[ -f $root/$theme/${image#"$current/theme/"} ]]; then
-        image=$root/$theme/${image#"$current/theme/"}
-        break
-      fi
+      [[ -f $root/$theme/${image#"$cur/theme/"} ]] && { image=$root/$theme/${image#"$cur/theme/"}; break; }
     done
   fi
 }
 
-# `omarchy theme update` pulls these, so writing into them would conflict with the author's files.
-from_git() {
-  [[ ! -L $themes/$theme && -d $themes/$theme/.git ]]
-}
+from_git()   { [[ ! -L $themes/$theme && -d $themes/$theme/.git ]]; }
+is_off()     { grep -qxF "$theme" "$off"; }
+ours()       { [[ -f $1 ]] && [[ $(head -n1 "$1") == "$marker" ]]; }
+picked()     { jq -r --arg i "$image" '.[$i] // 0' "$picks" 2>/dev/null || echo 0; }
+reapply()    { OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null; }
 
-is_off() {
-  grep -qxF "$theme" "$off"
-}
-
-ours() {
-  [[ -f $1 ]] && [[ $(head -n 1 "$1") == "$marker" ]]
-}
-
-picked_index() {
-  jq -r --arg image "$image" '.[$image] // 0' "$picks" 2>/dev/null || echo 0
-}
-
-# Bright wallpapers get a light palette. 0.6 sits in the gap between Kanagawa's cream paper (0.63)
-# and the darkest stock wallpapers that still read as dark (0.58).
+# Принудительный режим из $modef, иначе порог яркости 0.6.
 mode_for() {
-  if (( $(magick "$1[0]" -resize 64x64! -colorspace Gray -format '%[fx:mean > 0.6]' info:) )); then
-    echo light
-  else
-    echo dark
-  fi
-}
-
-reapply() {
-  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null
+  [[ -f $modef ]] && {
+    local forced; read -r forced <"$modef"
+    case $forced in dark|light) echo "$forced"; return;; esac
+  }
+  (( $(magick "$1[0]" -resize 64x64! -colorspace Gray -format '%[fx:mean > 0.6]' info:) )) && echo light || echo dark
 }
 
 sync() {
-  exec 9>"$state/lock"
-  flock 9
-  read_current
-  if is_off || from_git; then return; fi
-  require_matugen
-
-  local target=$themes/$theme/colors.toml mode
-  mode=$(mode_for "$image")
+  exec 9>"$state/lock"; flock 9; read_current
+  is_off || from_git && return
+  need_matugen
+  local target=$themes/$theme/colors.toml mode; mode=$(mode_for "$image")
   mkdir -p "$themes/$theme"
-
-  if [[ -f $target ]] && ! ours "$target"; then
-    mkdir -p "$backups"
-    cp "$target" "$backups/$theme.colors.toml"
-  fi
-
+  [[ -f $target ]] && ! ours "$target" && { mkdir -p "$backups"; cp "$target" "$backups/$theme.colors.toml"; }
   tmp=$(mktemp "$themes/$theme/.colors.toml.XXXXXX")
   {
     echo "$marker"
-    matugen image "$image" --dry-run --mode "$mode" --source-color-index "$(picked_index)" --json hex |
+    matugen image "$image" --dry-run --mode "$mode" --source-color-index "$(picked)" --json hex |
       jq -r --arg mode "$mode" -f "$here/colors.jq"
   } >"$tmp"
-
-  # Every theme change briefly freezes input while apps retint, so skip one that changes nothing.
-  if cmp -s "$tmp" "$target"; then
-    rm -f "$tmp"
-  else
-    mv "$tmp" "$target"
-    reapply
-  fi
+  cmp -s "$tmp" "$target" && rm -f "$tmp" || { mv "$tmp" "$target"; reapply; }
 }
 
 reset() {
-  exec 9>"$state/lock"
-  flock 9
-  read_current
+  exec 9>"$state/lock"; flock 9; read_current
   is_off || echo "$theme" >>"$off"
   from_git && return
-
   local target=$themes/$theme/colors.toml
   ours "$target" || return
   if [[ -f $backups/$theme.colors.toml ]]; then
     mv "$backups/$theme.colors.toml" "$target"
   else
-    rm "$target"
-    rmdir --ignore-fail-on-non-empty "$themes/$theme"
+    rm "$target"; rmdir --ignore-fail-on-non-empty "$themes/$theme"
   fi
   reapply
 }
 
+# Один просмотр изображения + дешёвые matugen color вместо N просмотров.
 sources() {
   read_current
   if from_git; then
-    jq -nc --arg theme "$theme" '{theme: $theme, locked: true, active: -1, colors: []}'
-    return
+    jq -nc --arg t "$theme" '{theme:$t,locked:true,active:-1,mode:"auto",colors:[]}'; return
   fi
-  require_matugen
-  local mode count i active
-  mode=$(mode_for "$image")
-  active=$(is_off && echo -1 || picked_index)
-  count=$(matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null | grep -cE '^#[0-9a-fA-F]{6}$')
-  # Each candidate is shown as the accent it produces, not its raw (often dull) source color.
-  for (( i = 0; i < count; i++ )); do
-    matugen image "$image" --dry-run --mode "$mode" --source-color-index "$i" --json hex | jq -r --arg mode "$mode" '.colors.primary[$mode].color'
-  done | jq -Rsc --arg theme "$theme" --argjson active "$active" \
-    '{theme: $theme, locked: false, active: $active, colors: split("\n") | map(select(length > 0))}'
+  need_matugen
+  local mode c colors; mode=$(mode_for "$image")
+  colors=$(
+    matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null |
+      grep -E '^#[0-9a-fA-F]{6}$' |
+      while read -r c; do
+        matugen color hex "$c" --dry-run --mode "$mode" --json hex 2>/dev/null |
+          jq -r --arg m "$mode" '.colors.primary[$m].color'
+      done | jq -Rsc 'split("\n") | map(select(length > 0))'
+  )
+  jq -nc --arg t "$theme" --argjson a "$(is_off && echo -1 || picked)" \
+    --arg m "$mode" --argjson c "$colors" \
+    '{theme:$t,locked:false,active:$a,mode:$m,colors:$c}'
 }
 
 pick() {
   read_current
-  tmp=$(mktemp "$state/.off.XXXXXX")
-  grep -vxF "$theme" "$off" >"$tmp" || true
-  mv "$tmp" "$off"
-
+  tmp=$(mktemp "$state/.off.XXXXXX"); grep -vxF "$theme" "$off" >"$tmp" || true; mv "$tmp" "$off"
   tmp=$(mktemp "$state/.picks.XXXXXX")
   if [[ $1 == 0 ]]; then
-    jq --arg image "$image" 'del(.[$image])' "$picks" 2>/dev/null >"$tmp" || echo '{}' >"$tmp"
+    jq --arg i "$image" 'del(.[$i])' "$picks" 2>/dev/null >"$tmp" || echo '{}' >"$tmp"
   else
-    jq --arg image "$image" --argjson index "$1" '.[$image] = $index' "$picks" 2>/dev/null >"$tmp" ||
-      jq -n --arg image "$image" --argjson index "$1" '{($image): $index}' >"$tmp"
+    jq --arg i "$image" --argjson n "$1" '.[$i] = $n' "$picks" 2>/dev/null >"$tmp" ||
+      jq -n --arg i "$image" --argjson n "$1" '{($i): $n}' >"$tmp"
   fi
-  mv "$tmp" "$picks"
-  tmp=""
-  sync
+  mv "$tmp" "$picks"; tmp=""; sync
+}
+
+setmode() {
+  case ${1:-} in
+    "") [[ -f $modef ]] && cat "$modef" || echo auto ;;
+    auto) rm -f "$modef"; sync ;;
+    dark|light) printf '%s\n' "$1" >"$modef"; sync ;;
+    *) echo "Использование: wallpaper-colors mode [auto|dark|light]" >&2; exit 1 ;;
+  esac
 }
 
 case ${1:-sync} in
@@ -168,5 +130,6 @@ case ${1:-sync} in
   sources) sources ;;
   pick) pick "${2:?pick needs an index}" ;;
   reset) reset ;;
-  *) echo "Usage: wallpaper-colors [sync | sources | pick <index> | reset]" >&2; exit 1 ;;
+  mode) setmode "${2:-}" ;;
+  *) echo "Использование: wallpaper-colors [sync|sources|pick <n>|reset|mode <auto|dark|light>]" >&2; exit 1 ;;
 esac

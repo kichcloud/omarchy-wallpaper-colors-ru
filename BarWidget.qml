@@ -5,12 +5,11 @@ import qs.Commons
 import qs.Commons as Commons
 import qs.Ui
 
-// Bar button + popup listing the accents the wallpaper's source colors produce. Picking one recolors
-// the current theme around it; Theme default removes the override.
+// Кнопка в баре и панель выбора акцента/режима.
 Panel {
   id: root
-  moduleName: "adityamiskin.wallpaper-colors"
-  ipcTarget: "adityamiskin.wallpaper-colors"
+  moduleName: "kich.wallpaper-colors-ru"
+  ipcTarget: "kich.wallpaper-colors-ru"
 
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
   readonly property color fg: root.bar ? root.bar.foreground : Commons.Color.foreground
@@ -18,40 +17,46 @@ Panel {
 
   property var colors: []
   property string theme: ""
-  property bool locked: false
+  property string mode: "auto"
   property int active: 0
-  property string error: ""
+  property bool locked: false
   property bool loading: false
   property bool applying: false
+  property string error: ""
   property int cursor: 0
   property bool cursorActive: false
 
-  // Matugen's first candidate is the default; picking another is remembered for this wallpaper.
-  readonly property var rows: [{ index: -1, name: "Theme default", color: "" }].concat(root.colors.map(function(color, i) {
-    return { index: i, name: i === 0 ? "Wallpaper" : "Color " + (i + 1), color: color }
-  }))
+  readonly property var rows: [{ index: -1, name: "Тема по умолчанию", color: "" }].concat(
+    root.colors.map(function(c, i) { return { index: i, name: i ? "Цвет " + (i + 1) : "Обои", color: c } }))
   readonly property int activeRow: root.active + 1
+  readonly property var modes: [
+    { id: "auto", name: "Авто" }, { id: "dark", name: "Тёмная" }, { id: "light", name: "Светлая" }
+  ]
+
+  component T: Text {
+    textFormat: Text.PlainText
+    color: root.fg
+    font.family: root.fontFamily
+  }
 
   function refresh() {
     if (sourcesProc.running) return
-    root.loading = root.colors.length === 0
-    root.error = ""
+    root.loading = !root.colors.length; root.error = ""
     sourcesProc.running = true
   }
-
-  function pick(index) {
-    if (pickProc.running) return
-    root.applying = true
-    root.error = ""
-    pickProc.command = index < 0 ? [root.bin, "reset"] : [root.bin, "pick", String(index)]
-    pickProc.running = true
+  function run(proc, args) {
+    root.applying = true; root.error = ""
+    proc.command = [root.bin].concat(args); proc.running = true
   }
-
-  onOpenedChanged: {
-    if (!opened) return
-    root.cursorActive = false
-    refresh()
+  function finish(code, msg) {
+    root.applying = false
+    if (code !== 0) root.error = msg
+    root.refresh()
   }
+  function pick(i) { if (!pickProc.running) run(pickProc, i < 0 ? ["reset"] : ["pick", String(i)]) }
+  function setMode(m) { if (!setModeProc.running && root.mode !== m) run(setModeProc, ["mode", m]) }
+
+  onOpenedChanged: if (opened) { root.cursorActive = false; refresh() }
 
   Process {
     id: sourcesProc
@@ -61,165 +66,118 @@ Panel {
       onStreamFinished: {
         root.loading = false
         try {
-          var result = JSON.parse(String(text || "").trim())
-          root.colors = result.colors
-          root.theme = result.theme
-          root.locked = result.locked
-          root.active = result.active
-          root.cursor = root.activeRow
-        } catch (e) {
-          root.error = "Couldn't read the wallpaper's colors. Is matugen installed?"
-        }
+          var r = JSON.parse(String(text || "").trim())
+          root.colors = r.colors; root.theme = r.theme; root.mode = r.mode || "auto"
+          root.locked = r.locked; root.active = r.active; root.cursor = root.activeRow
+        } catch (e) { root.error = "Не удалось прочитать цвета обоев. Установлен ли matugen?" }
       }
     }
   }
+  Process { id: pickProc; onExited: function(c) { root.finish(c, "Не удалось применить цвет") } }
+  Process { id: setModeProc; onExited: function(c) { root.finish(c, "Не удалось изменить режим") } }
 
-  Process {
-    id: pickProc
-    onExited: function(code) {
-      root.applying = false
-      if (code !== 0) root.error = "Couldn't apply that color"
-      root.refresh()
-    }
-  }
-
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  implicitWidth: button.implicitWidth; implicitHeight: button.implicitHeight
 
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     text: "󰏘"
-    tooltipText: "Wallpaper colors"
+    tooltipText: "Цвета обоев"
     onPressed: function(b) { root.toggle() }
   }
 
   KeyboardPanel {
     id: panel
-    anchorItem: button
-    owner: root
-    bar: root.bar
-    open: root.opened
-    focusTarget: keyCatcher
+    anchorItem: button; owner: root; bar: root.bar; open: root.opened; focusTarget: keys
     contentWidth: panel.fittedContentWidth(Style.space(260))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight)
+    contentHeight: panel.fittedContentHeight(col.implicitHeight)
 
     PanelKeyCatcher {
-      id: keyCatcher
+      id: keys
       anchors.fill: parent
       onMoveRequested: function(dx, dy) {
-        if (!root.cursorActive) {
-          root.cursorActive = true
-          return
-        }
-        root.cursor = (root.cursor + (dx !== 0 ? dx : dy) + root.rows.length) % root.rows.length
+        if (!root.cursorActive) root.cursorActive = true
+        else root.cursor = (root.cursor + (dx || dy) + root.rows.length) % root.rows.length
       }
-      onActivateRequested: if (root.cursorActive && root.colors.length > 0) root.pick(root.rows[root.cursor].index)
+      onActivateRequested: if (root.cursorActive && root.colors.length) root.pick(root.rows[root.cursor].index)
       onCloseRequested: root.close()
-      onTabRequested: function(direction) { root.switchPanel(direction) }
+      onTabRequested: function(d) { root.switchPanel(d) }
+    }
 
-      Column {
-        id: column
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        spacing: Style.space(10)
+    Column {
+      id: col
+      anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+      spacing: Style.space(10)
 
-        PanelSectionHeader {
-          text: "Accent"
-          foreground: root.fg
-          fontFamily: root.fontFamily
-        }
+      PanelSectionHeader { text: "Акцент"; foreground: root.fg; fontFamily: root.fontFamily }
 
-        Text {
-          visible: root.locked
-          width: parent.width
-          wrapMode: Text.Wrap
-          textFormat: Text.PlainText
-          text: root.theme + " is installed from git, so it is left unchanged."
-          color: root.fg
-          opacity: 0.6
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-        }
+      T {
+        visible: root.locked; width: parent.width; wrapMode: Text.Wrap; opacity: .6
+        font.pixelSize: Style.font.bodySmall
+        text: root.theme + " установлена из git — цвета не изменены."
+      }
+      T {
+        visible: root.loading || root.applying || root.error !== ""
+        width: parent.width; wrapMode: Text.Wrap
+        color: root.error !== "" ? Commons.Color.urgent : root.fg
+        opacity: root.error !== "" ? 1 : .6; font.pixelSize: Style.font.bodySmall
+        text: root.error !== "" ? root.error : root.applying ? "Применяем…" : "Читаем обои…"
+      }
 
-        Text {
-          visible: root.loading || root.applying || root.error !== ""
-          width: parent.width
-          wrapMode: Text.Wrap
-          textFormat: Text.PlainText
-          text: root.error !== "" ? root.error : root.applying ? "Applying…" : "Reading the wallpaper…"
-          color: root.error !== "" ? Commons.Color.urgent : root.fg
-          opacity: root.error !== "" ? 1 : 0.6
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-        }
-
-        Repeater {
-          model: root.colors.length > 0 ? root.rows : []
+      Repeater {
+        model: root.colors.length ? root.rows : []
+        Rectangle {
+          required property var modelData; required property int index
+          readonly property bool current: index === root.activeRow
+          readonly property bool hot: (root.cursorActive && root.cursor === index) || mouse.containsMouse
+          width: col.width; height: Style.space(36); radius: Style.cornerRadius
+          color: hot ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .08) : "transparent"
+          border.width: current ? Math.max(1, Style.space(2)) : 0
+          border.color: modelData.color || root.fg
 
           Rectangle {
-            id: row
+            id: swatch
+            x: Style.space(10); anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(20); height: width; radius: width / 2
+            color: modelData.color || "transparent"
+            border.width: modelData.color ? 0 : 1; border.color: root.fg
+          }
+          T {
+            anchors.left: swatch.right; anchors.leftMargin: Style.space(12); anchors.verticalCenter: parent.verticalCenter
+            text: modelData.name; font.pixelSize: Style.font.body; font.bold: current
+          }
+          T {
+            anchors.right: parent.right; anchors.rightMargin: Style.space(10); anchors.verticalCenter: parent.verticalCenter
+            text: current ? "✓" : (modelData.color || root.theme)
+            opacity: current ? 1 : .5; font.pixelSize: Style.font.bodySmall
+          }
+          MouseArea {
+            id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onEntered: { root.cursorActive = true; root.cursor = index }
+            onClicked: root.pick(modelData.index)
+          }
+        }
+      }
+
+      PanelSectionHeader { text: "Режим"; foreground: root.fg; fontFamily: root.fontFamily }
+      Row {
+        width: col.width; spacing: Style.space(6)
+        Repeater {
+          model: root.modes
+          Rectangle {
             required property var modelData
-            required property int index
-            readonly property bool current: index === root.activeRow
-            readonly property bool hasCursor: (root.cursorActive && root.cursor === index) || mouse.containsMouse
-
-            width: column.width
-            height: Style.space(36)
-            radius: Style.cornerRadius
-            color: hasCursor ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.08) : "transparent"
-            border.width: current ? Math.max(1, Style.space(2)) : 0
-            border.color: modelData.color || root.fg
-
-            Rectangle {
-              id: swatch
-              anchors.left: parent.left
-              anchors.leftMargin: Style.space(10)
-              anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(20)
-              height: width
-              radius: width / 2
-              color: row.modelData.color || "transparent"
-              border.width: row.modelData.color ? 0 : 1
-              border.color: root.fg
+            readonly property bool current: root.mode === modelData.id
+            width: (col.width - Style.space(12)) / 3; height: Style.space(32); radius: Style.cornerRadius
+            color: current ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14) : "transparent"
+            border.width: current ? 1 : 0; border.color: root.fg
+            T {
+              anchors.centerIn: parent; text: modelData.name
+              font.pixelSize: Style.font.bodySmall; font.bold: current
             }
-
-            Text {
-              anchors.left: swatch.right
-              anchors.leftMargin: Style.space(12)
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: row.modelData.name
-              color: root.fg
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.body
-              font.bold: row.current
-            }
-
-            Text {
-              anchors.right: parent.right
-              anchors.rightMargin: Style.space(10)
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: row.current ? "✓" : row.modelData.color || root.theme
-              color: root.fg
-              opacity: row.current ? 1 : 0.5
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-            }
-
             MouseArea {
-              id: mouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onEntered: {
-                root.cursorActive = true
-                root.cursor = row.index
-              }
-              onClicked: root.pick(row.modelData.index)
+              anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+              onClicked: root.setMode(modelData.id)
             }
           }
         }

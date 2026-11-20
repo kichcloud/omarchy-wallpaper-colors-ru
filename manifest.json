@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "adityamiskin.wallpaper-colors",
-  "name": "Wallpaper Colors",
-  "version": "2.0.0",
-  "author": "Aditya Miskin",
+  "id": "kich.wallpaper-colors-ru",
+  "name": "Wallpaper Colors RU",
+  "version": "2.1.0",
+  "author": "Aditya Miskin, kichcloud (fork)",
   "license": "MIT",
-  "description": "Recolors your current Omarchy theme from the wallpaper with matugen: bar, terminals, browser, and light or dark by how bright the image is. Your theme stays active; Theme default in the bar popup puts its own colors back.",
+  "description": "Перекрашивает текущую тему Omarchy по цветам обоев через matugen. Добавлен ручной выбор режима (Авто/Тёмная/Светлая) и русский интерфейс.",
   "kinds": [
     "service",
     "bar-widget"
@@ -15,8 +15,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Wallpaper Colors",
-    "description": "Pick the wallpaper accent, or go back to the theme's own colors.",
+    "displayName": "Цвета обоев",
+    "description": "Выбрать акцент обоев или вернуть цвета темы.",
     "category": "Appearance",
     "allowMultiple": false,
     "defaultSection": "right"
