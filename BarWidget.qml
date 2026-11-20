@@ -12,6 +12,7 @@ Panel {
   ipcTarget: "kich.wallpaper-colors-ru"
 
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
+  readonly property string styleBin: decodeURIComponent(String(Qt.resolvedUrl("bin/glass-style")).replace(/^file:\/\//, ""))
   readonly property color fg: root.bar ? root.bar.foreground : Commons.Color.foreground
   readonly property string fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
 
@@ -22,6 +23,8 @@ Panel {
   property bool locked: false
   property bool loading: false
   property bool applying: false
+  property string glassStyle: "glass"
+  property string pendingStyle: ""
   property string error: ""
   property int cursor: 0
   property bool cursorActive: false
@@ -55,8 +58,17 @@ Panel {
   }
   function pick(i) { if (!pickProc.running) run(pickProc, i < 0 ? ["reset"] : ["pick", String(i)]) }
   function setMode(m) { if (!setModeProc.running && root.mode !== m) run(setModeProc, ["mode", m]) }
+  function setGlassStyle(s) {
+    if (styleProc.running || root.glassStyle === s) return
+    root.pendingStyle = s; root.applying = true
+    styleProc.command = [root.styleBin, s]; styleProc.running = true
+  }
 
-  onOpenedChanged: if (opened) { root.cursorActive = false; refresh() }
+  onOpenedChanged: if (opened) {
+    root.cursorActive = false
+    styleStatusProc.running = true
+    refresh()
+  }
 
   Process {
     id: sourcesProc
@@ -71,6 +83,22 @@ Panel {
           root.locked = r.locked; root.active = r.active; root.cursor = root.activeRow
         } catch (e) { root.error = "Не удалось прочитать цвета обоев. Установлен ли matugen?" }
       }
+    }
+  }
+  Process {
+    id: styleStatusProc
+    command: [root.styleBin, "status"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.glassStyle = String(text || "").trim() === "opaque" ? "opaque" : "glass"
+    }
+  }
+  Process {
+    id: styleProc
+    onExited: function(c) {
+      if (c === 0) root.glassStyle = root.pendingStyle
+      root.applying = false
+      root.refresh()
     }
   }
   Process { id: pickProc; onExited: function(c) { root.finish(c, "Не удалось применить цвет") } }
@@ -167,6 +195,32 @@ Panel {
             MouseArea {
               anchors.fill: parent; cursorShape: Qt.PointingHandCursor
               onClicked: root.setMode(modelData.id)
+            }
+          }
+        }
+      }
+
+      PanelSectionHeader { text: "Стиль"; foreground: root.fg; fontFamily: root.fontFamily }
+      Row {
+        width: col.width; spacing: Style.space(6)
+        Repeater {
+          model: [
+            { id: "glass", name: "Прозрачный" },
+            { id: "opaque", name: "Штатный" }
+          ]
+          Rectangle {
+            required property var modelData
+            readonly property bool current: root.glassStyle === modelData.id
+            width: (col.width - Style.space(6)) / 2; height: Style.space(28); radius: Style.cornerRadius
+            color: current ? Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14) : "transparent"
+            border.width: current ? 1 : 0; border.color: root.fg
+            T {
+              anchors.centerIn: parent; text: modelData.name
+              font.pixelSize: Style.font.bodySmall; font.bold: current
+            }
+            MouseArea {
+              anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+              onClicked: root.setGlassStyle(modelData.id)
             }
           }
         }

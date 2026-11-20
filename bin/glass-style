@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Переключатель стиля Omarchy: прозрачное стекло или штатный вид.
+# Вызывается кнопкой «Стиль» в панели «Цвета обоев».
+set -euo pipefail
+
+ST=~/.local/state/omarchy/uniform-glass
+mkdir -p "$ST"
+mode=${1:-status}
+
+if [[ $mode == status ]]; then
+  cat "$ST/style" 2>/dev/null || echo glass
+  exit 0
+fi
+[[ $mode == glass || $mode == opaque ]] || { echo "usage: glass-style [glass|opaque|status]" >&2; exit 2; }
+
+# glass → glassy/kich.osd/0.85, opaque → opaque/omarchy.osd/1.0
+bg=glassy; osd_on=kich.osd; osd_off=omarchy.osd; alpha=0.85
+if [[ $mode == opaque ]]; then
+  bg=opaque; osd_on=omarchy.osd; osd_off=kich.osd; alpha=1.0
+fi
+printf '%s\n' "$mode" >"$ST/style"
+
+# Штатные тумблеры меню: галочки совпадают с видом, без побочки
+# omarchy-hyprland-window-transparency (он дописывает alpha=0.65 в тему).
+omarchy-bar background "$bg" >/dev/null 2>&1 || true
+T=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr
+rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
+omarchy-theme-set-glass >/dev/null 2>&1 || true
+src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
+[[ -f $src ]] && cp "$src" "$T/$(basename "$src")"
+
+omarchy plugin enable "$osd_on" >/dev/null 2>&1 || true
+omarchy plugin disable "$osd_off" >/dev/null 2>&1 || true
+
+{
+  echo "# Управляется панелью «Цвета обоев» → Стиль."
+  for s in bar popups tooltip notifications launcher menu polkit lock; do
+    printf '[%s]\nbackground-alpha = %s\n\n' "$s" "$alpha"
+  done
+} >~/.config/omarchy/shell.toml
+
+# foot: alpha фона нужна для блюра в стеклянном стиле и мешает в штатном.
+theme=$(<~/.local/state/omarchy/current/theme.name)
+for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini; do
+  [[ -f $f ]] || continue
+  sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$alpha/" "$f"
+done
+
+hyprctl reload >/dev/null 2>&1 || true
+omarchy restart shell >/dev/null 2>&1 || true
