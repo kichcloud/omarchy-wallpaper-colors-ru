@@ -487,7 +487,6 @@ body,
 
 /* Каналы остаются квадратными — исключение аватарок не должно их задевать. */
 #app-mount [class*="link_"],
-#app-mount [class*="linkTop_"],
 #app-mount [class*="channelInfo_"] {
   border-radius: 0 !important;
 }
