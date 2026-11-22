@@ -33,6 +33,9 @@ if [[ $mode == alpha ]]; then
   v=${2:-}
   [[ $v =~ ^0?\.[0-9]+$ || $v =~ ^1(\.0+)?$ ]] || { echo "usage: glass-style alpha 0.30..1.0" >&2; exit 2; }
   python3 -c 'import sys; v=float(sys.argv[1]); sys.exit(0 if 0.30<=v<=1.0 else 1)' "$v" || exit 2
+  # В штатном стиле ползунки скрыты; запоздавший процесс от ползунка не должен
+  # превратить непрозрачный стиль в прозрачный.
+  [[ $style == opaque ]] && exit 0
   printf '%s\n' "$v" >"$alpha_file"
   # Сначала foot.ini — install-config вызывает omarchy theme set, который
   # перезапускает терминалы. Иначе foot успеет прочитать_PROШЛУЮ альфу.
@@ -44,8 +47,6 @@ if [[ $mode == alpha ]]; then
   done
   # Только альфа: оболочка сама следит за shell.toml, полная смена темы не нужна.
   "$ROOT/bin/install-config" --light "$v" >/dev/null 2>&1 || true
-  # Один reload, чтобы Lua-конфиг перечитал glass-alpha.
-  hyprctl reload >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -54,7 +55,9 @@ if [[ $mode == blur ]]; then
   v=${2:-}
   [[ $v =~ ^[0-9]+$ ]] && (( v <= 30 )) || { echo "usage: glass-style blur 0..30" >&2; exit 2; }
   printf '%s\n' "$v" >"$blur_file"
-  fb=no; (( v > 0 )) && fb=yes
+  # Композитор отключает блюр при A=1.0, поэтому foot тоже не должен размывать.
+  fb=no
+  [[ $style == glass ]] && (( v > 0 )) && fb=yes
   sed -i -E "s/^([[:space:]]*blur[[:space:]]*=[[:space:]]*).*/\1$fb/" \
     ~/.local/state/omarchy/current/theme/foot.ini 2>/dev/null || true
   hyprctl reload >/dev/null 2>&1 || true
@@ -63,22 +66,17 @@ fi
 
 [[ $mode == glass || $mode == opaque ]] || { echo "usage: glass-style [glass|opaque|status|values|alpha <v>|blur <n>]" >&2; exit 2; }
 
-# glass → window-glassy/0.85, opaque → window-opaque/1.0
-bg=glassy; alpha=0.85
-if [[ $mode == opaque ]]; then
-  bg=opaque; alpha=1.0
-fi
+# glass → 0.85, opaque → 1.0
+alpha=0.85
+[[ $mode == opaque ]] && alpha=1.0
 printf '%s\n' "$mode" >"$ST/glass-style"
 rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
 
 # Гарантируем, что все конфиги плагина на месте (в т.ч. на новой машине).
 "$ROOT/bin/install-config" "$alpha" >/dev/null 2>&1 || true
 
-T=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr
-rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
-src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
-[[ -f $src ]] && cp "$src" "$T/$(basename "$src")"
-omarchy-theme-set-glass >/dev/null 2>&1 || true
+# Тумблер окон и omarchy-theme-set-glass уже делает install-config выше.
+# Повторный вызов здесь затёр бы восстановленное значение blur из foot.ini.
 
 theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
 for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \

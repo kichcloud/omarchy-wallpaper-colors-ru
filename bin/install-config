@@ -46,6 +46,9 @@ if [[ ${1:-} == --light ]]; then
   alpha=${2:-$default_alpha}
   [[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || alpha=$default_alpha
   shell_alpha
+  # Lua-конфиг Hyprland читает именно этот файл — держим его в синхроне с shell.toml.
+  printf '%s\n' "$alpha" >"$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-alpha"
+  hyprctl reload >/dev/null 2>&1 || true
   exit 0
 fi
 
