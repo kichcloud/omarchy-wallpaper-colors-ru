@@ -49,11 +49,8 @@ PY
 vesktop_alpha() {
   local data=$HOME_DIR/.local/share/omarchy-glass
   mkdir -p "$data"
-  local c="rgba(var(--oc-bg-rgb), $alpha)"
-  printf ':root {\n  --oc-alpha: %s;\n  --oc-s0: %s !important;\n  --oc-s1: %s !important;\n  --oc-s2: %s !important;\n  --oc-s3: %s !important;\n  --oc-s4: %s !important;\n  --app-background: %s !important;\n  --background-primary: %s !important;\n  --background-secondary: %s !important;\n  --background-secondary-alt: %s !important;\n  --background-tertiary: %s !important;\n  --background-floating: %s !important;\n  --chat-background-default: %s !important;\n  --bg-base-primary: %s !important;\n  --bg-base-secondary: %s !important;\n  --bg-base-tertiary: %s !important;\n  --bg-overlay-chat: %s !important;\n  --bg-overlay-app-frame: %s !important;\n}\n' \
-    "$alpha" "$c" "$c" "$c" "$c" "$c" \
-    "$c" "$c" "$c" "$c" "$c" "$c" "$c" \
-    "$c" "$c" "$c" "$c" "$c" >"$data/alpha.css"
+  printf ':root {\n  --oc-s0: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s1: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s2: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s3: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s4: rgba(var(--oc-bg-rgb), %s) !important;\n}\n' \
+    "$alpha" "$alpha" "$alpha" "$alpha" "$alpha" >"$data/alpha.css"
   bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" \
     "$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || echo wallpaper-glass)" >/dev/null 2>&1 || true
 }
