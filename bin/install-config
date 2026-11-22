@@ -54,7 +54,11 @@ fi
 omarchy-bar background opaque >/dev/null 2>&1 || true
 
 # Пересобрать палитру/тему под новые шаблоны.
+THEME_NAME=$(<"$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null) || THEME_NAME=wallpaper-glass
 if [[ -f "$ROOT/bin/wallpaper-colors" ]]; then
-  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$(<"$HOME_DIR/.local/state/omarchy/current/theme.name")" >/dev/null 2>&1 || true
+  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME_NAME" >/dev/null 2>&1 || true
 fi
+# omarchy theme set может не дёрнуть хуки, если тема не менялась — вызываем
+# генератор темы Vesktop явно, чтобы CSS всегда соответствовал ассетам.
+bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" "$THEME_NAME" >/dev/null 2>&1 || true
 hyprctl reload >/dev/null 2>&1 || true
