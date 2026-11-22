@@ -30,7 +30,7 @@ def surface(t): tone("neutral_variant"; t) | hsl | .[1] *= 0.5 | hex;
 . as $m
 | (if $mode == "light" then {
     background: surface("95"),
-    dark_background: surface("90"),
+    dark_background: surface("95"),
     darker_background: surface("80"),
     lighter_background: surface("90"),
     foreground: tone("neutral"; "10"),
@@ -41,7 +41,7 @@ def surface(t): tone("neutral_variant"; t) | hsl | .[1] *= 0.5 | hex;
     muted: tone("neutral_variant"; "70")
   } else {
     background: surface("10"),
-    dark_background: surface("5"),
+    dark_background: surface("10"),
     darker_background: "#000000",
     lighter_background: surface("15"),
     foreground: tone("neutral"; "90"),
