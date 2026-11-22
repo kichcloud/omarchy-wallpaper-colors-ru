@@ -32,7 +32,8 @@ hl.config({
     active_opacity = A,
     inactive_opacity = A,
     blur = {
-      enabled = blurSize > 0,
+      -- При полностью непрозрачных поверхностях размывать нечего.
+      enabled = blurSize > 0 and A < 1.0,
       size = blurSize,
       passes = 2,
       brightness = 0.75,

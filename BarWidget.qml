@@ -259,8 +259,12 @@ Panel {
         }
       }
 
-      PanelSectionHeader { text: "Прозрачность"; foreground: root.fg; fontFamily: root.fontFamily }
+      PanelSectionHeader {
+        visible: root.glassStyle !== "opaque"
+        text: "Прозрачность"; foreground: root.fg; fontFamily: root.fontFamily
+      }
       Row {
+        visible: root.glassStyle !== "opaque"
         width: col.width; spacing: Style.space(8)
         PanelSlider {
           id: alphaSlider
@@ -279,8 +283,12 @@ Panel {
         }
       }
 
-      PanelSectionHeader { text: "Блюр"; foreground: root.fg; fontFamily: root.fontFamily }
+      PanelSectionHeader {
+        visible: root.glassStyle !== "opaque"
+        text: "Блюр"; foreground: root.fg; fontFamily: root.fontFamily
+      }
       Row {
+        visible: root.glassStyle !== "opaque"
         width: col.width; spacing: Style.space(8)
         PanelSlider {
           id: blurSlider

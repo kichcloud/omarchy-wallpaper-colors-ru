@@ -13,6 +13,11 @@ style=$(cat "$ST/style" 2>/dev/null || true)
 alpha_file="$ST/alpha"
 blur_file="$ST/blur"
 
+if [[ $mode == status ]]; then
+  echo "$style"
+  exit 0
+fi
+
 # Текущие значения для панели: JSON.
 if [[ $mode == values ]]; then
   a=$(cat "$alpha_file" 2>/dev/null || true)
