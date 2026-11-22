@@ -152,9 +152,9 @@ def retint(css, m):
     css = PROT.sub(hold, css)
     css = HEX.sub(hexr, css)
     css = RGB.sub(rgbg, css)
-    for i, v in enumerate(keep):
-        css = css.replace("\x00%d\x00" % i, v)
-    return css
+    # Один проход вместо N проходов по всему CSS: раньше каждый replace
+    # сканировал всю строку заново (658 подстановок → ~2 ГБ копирования).
+    return re.sub(r"\x00(\d+)\x00", lambda m: keep[int(m.group(1))], css)
 
 
 def stylesheet():
