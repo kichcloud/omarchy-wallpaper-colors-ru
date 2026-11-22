@@ -455,7 +455,7 @@ pre,
 }
 
 /* ==========================================================================
-   Omarchy Glass — layer: square corners, solid surfaces
+   Omarchy Glass — layer: stock shapes, solid surfaces
    No transparency, no blur. All colours come from the Omarchy palette that
    is embedded above, so the look follows `omarchy theme set`.
    ========================================================================== */
@@ -468,30 +468,8 @@ body,
   background: transparent !important;
 }
 
-/* --------------------------------------------------------------------------
-   Straight corners. Discord clips avatars and channel icons with masks,
-   so resetting the radius alone leaves them round — kill the masks too.
-   -------------------------------------------------------------------------- */
-#app-mount *,
-#app-mount *::before,
-#app-mount *::after {
-  border-radius: 0 !important;
-  clip-path: none !important;
-  -webkit-clip-path: none !important;
-  mask: none !important;
-  -webkit-mask: none !important;
-  mask-image: none !important;
-  -webkit-mask-image: none !important;
-  mask-border: none !important;
-  -webkit-mask-box-image: none !important;
-}
-
-/* Only the small status indicators stay round. */
-#app-mount [class*="statusDot_"],
-#app-mount [class*="status_"][class*="dot_"],
-#app-mount [class*="typing_"] [class*="dot_"] {
-  border-radius: 50% !important;
-}
+/* Формы аватарок, каналов, папок и индикаторов статуса оставляем штатными:
+   Discord сам задаёт им скругления и маски — не переопределяем их. */
 
 /* Hairline separators and the accent rule along the header, matching
    Hyprland's 1px borders. */
