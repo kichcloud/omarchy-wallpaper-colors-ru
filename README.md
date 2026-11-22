@@ -1,16 +1,14 @@
 # Wallpaper Colors RU
 
-Форк [adityamiskin/omarchy-wallpaper-colors](https://github.com/adityamiskin/omarchy-wallpaper-colors)
-с встроенным перекрашивателем курсора из
-[cursor-accent](https://github.com/smoothpixels/omarchy-cursor-accent).
-
-Один плагин красит **тему Omarchy и курсор** по цветам обоев.
+Плагин для Omarchy: красит **тему рабочего стола, курсор и интерфейс Discord** по цветам текущих обоев.
 
 ## Что внутри
 
 - **Акцент** — палитра matugen для текущих обоев, выбор акцента, «Тема по умолчанию».
 - **Режим** — `Авто` (порог яркости 0.6), `Тёмная`, `Светлая`.
-- **Курсор** — Bibata, перекрашенный в цвета темы; собирается при смене темы и при старте оболочки. Формы `modern` / `original`, режимы `follow` / `fixed` / `default`.
+- **Стиль** — `Прозрачный` / `Штатный`: единая альфа для всех окон, панелей и всплывающих поверхностей.
+- **Курсор** — Bibata, перекрашенный в цвета темы. Формы `modern` / `original`, режимы `follow` / `fixed` / `default`.
+- **Тема и lock-макет** — собственная тема рабочего стола и макет экрана блокировки в штатных каруселях.
 
 ## Установка
 
@@ -37,8 +35,6 @@ $BIN shape modern|original
 - `~/.local/state/omarchy/wallpaper-colors/cursor/` — конфиг курсора и блокировка;
 - `~/.local/share/icons/Omarchy-Accent/` — установленная тема курсора (hyprcursor + Xcursor).
 
-Отдельный плагин `cursor-accent` и его хуки **не нужны** — удалены.
-
 ## Что ставит плагин
 
 `bin/install-config` (вызывается при старте оболочки и при каждом переключении стиля) копирует из `assets/` и включает:
@@ -46,19 +42,19 @@ $BIN shape modern|original
 - `themed/omarchy-glass.palette.css.tpl` — палитра Vesktop без подмеса к foreground;
 - `local/share/omarchy-glass/style.css` — CSS стекла с твёрдыми поверхностями;
 - `hooks/theme-set.d/omarchy-glass` — пересборка темы Vesktop при смене темы;
-- `hypr/uniform-glass.lua` — единая альфа 0.85 и блюр для всех окон, подключённая в `hyprland.lua`;
-- альфу 0.85 для панелей в `~/.config/omarchy/shell.toml`;
-- бар в режиме `opaque` (сплошная поверхность, как у остальных окон);
+- `hypr/uniform-glass.lua` — единая альфа и блюр для всех окон, подключённая в `hyprland.lua`;
+- альфу для панелей в `~/.config/omarchy/shell.toml` (0.85 в стеклянном стиле, 1.0 в штатном);
+- бар в режиме `opaque`;
 - Vesktop с темой `omarchy-glass.theme.css` и `transparent: false`.
 
-`bin/install-config` дополнительно ставит тему `wallpaper-glass` и lock-макет. Всё идемпотентно: на новой машине включение прозрачного стиля даёт тот же результат.
+Плагин также ставит тему `wallpaper-glass` и lock-макет. Всё идемпотентно: на новой машине включение прозрачного стиля даёт тот же результат.
 
 ## Тема рабочего стола и lock
 
 При первом запуске (после установки плагина) `bin/install-config` молча:
 
 - копирует тему **`wallpaper-glass`** в `~/.config/omarchy/themes/` — она видна в штатной карусели тем как «Wallpaper Glass» — и переключается на неё, не меняя текущие обои;
-- кладёт `WallpaperGlass.qml` в `~/.config/omarchy/lock-designs/` и выбирает его (`my-wallpaper-glass`) в настройках lock-дизайнов.
+- кладёт `WallpaperGlass.qml` в `~/.config/omarchy/lock-designs/` и выбирает его (`my-wallpaperglass`) в настройках lock-дизайнов.
 
 Lock-макет — стандартный центр с полем пароля; фон берётся из реально установленных обоев (`current/background`), цвета — из палитры, которую плагин пишет в `colors.toml` (`qs.Commons.Color`). Повторные запуски ничего не меняют: установка идемпотентна по маркеру в каталоге темы.
 
