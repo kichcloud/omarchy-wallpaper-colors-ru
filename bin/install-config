@@ -84,6 +84,15 @@ fi
 omarchy plugin disable kich.osd >/dev/null 2>&1 || true
 omarchy plugin disable omarchy.osd >/dev/null 2>&1 || true
 
+# Синхронизировать тумблер окон со стилем — иначе foot теряет blur=yes.
+T=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr
+wmode=glassy
+[[ $style == opaque ]] && wmode=opaque
+rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
+wsrc=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$wmode.lua
+[[ -f $wsrc ]] && cp "$wsrc" "$T/$(basename "$wsrc")"
+omarchy-theme-set-glass >/dev/null 2>&1 || true
+
 # Бар: сплошная поверхность, как у остальных окон (не glassy).
 omarchy-bar background opaque >/dev/null 2>&1 || true
 
