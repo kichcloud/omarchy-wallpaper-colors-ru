@@ -17,6 +17,9 @@
     "barWidget": "BarWidget.qml",
     "panel": "osd/Osd.qml"
   },
+  "omarchy": {
+    "clonedFrom": "omarchy.osd"
+  },
   "barWidget": {
     "displayName": "Цвета обоев",
     "description": "Выбрать акцент обоев или вернуть цвета темы.",

@@ -79,6 +79,9 @@ check 'reset сохраняет colors.toml' test -f "$HOME/.config/omarchy/them
 $BIN/wallpaper-colors pick 0 >/dev/null 2>&1
 check 'pick 0 снимает off' test ! -s "$ST/off"
 
+# --- OSD: оболочка должна суммонить наш плагин вместо отключённого omarchy.osd ---
+check 'manifest: clonedFrom omarchy.osd' python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d.get("omarchy",{}).get("clonedFrom")=="omarchy.osd"' "$ROOT/manifest.json"
+
 # --- идемпотентность установки ---
 $BIN/install-config >/dev/null 2>&1
 check 'require в hyprland.lua не дублируется' bash -c '[[ $(grep -c "require(\"hypr.uniform-glass\")" "$1" 2>/dev/null) == 1 ]]' _ "$HOME/.config/hypr/hyprland.lua"
