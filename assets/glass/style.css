@@ -513,6 +513,24 @@ body,
   pointer-events: none;
 }
 
+/* Контейнеры Discord иногда задают фон вне наших токенов. Явно накладываем
+   альфу на большие поверхности, оставляя текст и аватары нетронутыми. */
+:root {
+  --oc-alpha: 0.85;
+}
+
+#app-mount [class*="membersWrap_"],
+#app-mount [class*="members_"],
+#app-mount [class*="memberList_"],
+#app-mount [class*="sidebar_"],
+#app-mount [class*="privateChannels_"],
+#app-mount [class*="chatContent_"],
+#app-mount [class*="chat_"],
+#app-mount [class*="scroller_"] {
+  background: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
+  background-image: none !important;
+}
+
 /* Translucent surfaces from the active palette, so wallpaper-colors keeps
    driving every tone while the wallpaper reads through the client. */
 :root {
