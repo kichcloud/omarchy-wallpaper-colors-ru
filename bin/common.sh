@@ -52,7 +52,9 @@ reload_hypr() {
 
 # Зависимости, которые перекрашиваются вместе с палитрой.
 apply_tools() {
-  local root=$1
+  local root=$1 steam=$HOME/.local/bin/steam-accent
   [[ -f $root/bin/cursor-recolor ]] && python3 "$root/bin/cursor-recolor" apply >/dev/null 2>&1 || true
   [[ -f $root/bin/opencode-theme ]] && python3 "$root/bin/opencode-theme" >/dev/null 2>&1 || true
+  # Steam красится по событию смены палитры — отдельный демон не нужен.
+  [[ -x $steam ]] && "$steam" --once >/dev/null 2>&1 || true
 }

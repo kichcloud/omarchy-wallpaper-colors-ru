@@ -105,6 +105,15 @@ configure_vesktop() {
   fi
 }
 
+configure_steam() {
+  # CEF Whisper Wrap нужен только для живой инъекции CSS через локальный CDP.
+  mkdir -p "$HOME_DIR/.steam/steam" "$HOME_DIR/.local/bin"
+  touch "$HOME_DIR/.steam/steam/.cef-enable-remote-debugging"
+  local src=$ROOT/assets/steam/steam-accent.py dst=$HOME_DIR/.local/bin/steam-accent
+  [[ -f $src ]] || return 0
+  install -m755 "$src" "$dst"
+}
+
 configure_osd() {
   # OSD встроен в этот плагин — стоковый и старый клон больше не нужны.
   omarchy plugin disable kich.osd >/dev/null 2>&1 || true
@@ -183,6 +192,7 @@ migrate_state
 deploy_assets
 shell_alpha
 configure_vesktop
+configure_steam
 configure_osd
 configure_window_toggle
 omarchy-bar background opaque >/dev/null 2>&1 || true
