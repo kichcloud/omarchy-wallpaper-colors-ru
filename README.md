@@ -39,6 +39,20 @@ $BIN shape modern|original
 
 Отдельный плагин `cursor-accent` и его хуки **не нужны** — удалены.
 
+## Что ставит плагин
+
+`bin/install-config` (вызывается при старте оболочки и при каждом переключении стиля) копирует из `assets/` и включает:
+
+- `themed/omarchy-glass.palette.css.tpl` — палитра Vesktop без подмеса к foreground;
+- `local/share/omarchy-glass/{style.css,glass-layer.css}` — CSS стекла с твёрдыми поверхностями;
+- `hooks/theme-set.d/omarchy-glass` — пересборка темы Vesktop при смене темы;
+- `hypr/uniform-glass.lua` — единая альфа 0.85 и блюр для всех окон, подключённая в `hyprland.lua`;
+- альфу 0.85 для панелей в `~/.config/omarchy/shell.toml`;
+- бар в режиме `opaque` (сплошная поверхность, как у остальных окон);
+- Vesktop с темой `omarchy-glass.theme.css` и `transparent: false`.
+
+`bin/install-themes` дополнительно ставит тему `wallpaper-glass` и lock-макет. Всё идемпотентно: на новой машине включение прозрачного стиля даёт тот же результат.
+
 ## Тема рабочего стола и lock
 
 При первом запуске (после установки плагина) `bin/install-themes` молча:

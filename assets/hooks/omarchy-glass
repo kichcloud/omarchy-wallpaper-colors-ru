@@ -1,0 +1,55 @@
+#!/bin/bash
+# omarchy-glass theme-set hook.
+#
+# Runs at the end of `omarchy theme set` / `omarchy theme refresh`, after
+# Omarchy has rendered omarchy-glass.palette.css.tpl into the current theme.
+# Composes the palette + stylesheet and writes the Vencord theme file.
+# Writing (not symlinking) is what makes Vencord's directory watch fire.
+
+set -uo pipefail
+
+data="$HOME/.local/share/omarchy-glass"
+[[ -r $data/style.css ]] || exit 0
+
+if [[ -d $HOME/.local/state/omarchy/current/theme ]]; then
+  theme_dir="$HOME/.local/state/omarchy/current/theme"
+elif [[ -d $HOME/.config/omarchy/current/theme ]]; then
+  theme_dir="$HOME/.config/omarchy/current/theme"
+else
+  exit 0
+fi
+
+compose() {
+  printf '/**\n * @name Omarchy Glass\n * @description Discord following the Omarchy palette, with frosted glass and square corners.\n * @author Omarchy\n **/\n\n'
+  if [[ -f $theme_dir/omarchy-glass.palette.css ]]; then
+    grep -v '{{' "$theme_dir/omarchy-glass.palette.css" || true
+    printf '\n'
+  fi
+  cat "$data/style.css"
+}
+
+body=$(compose) || exit 0
+[[ -n $body ]] || exit 0
+
+# Every local Vencord-based client we can find.
+targets=("$HOME/.config/vesktop/themes" "$HOME/.config/Vencord/themes")
+shopt -s nullglob
+targets+=("$HOME"/.var/app/*/config/vesktop/themes "$HOME"/.var/app/*/config/Vencord/themes)
+shopt -u nullglob
+
+for themes_dir in "${targets[@]}"; do
+  [[ -d $themes_dir ]] || continue
+  target="$themes_dir/omarchy-glass.theme.css"
+  if [[ -f $target ]] && printf '%s\n' "$body" | cmp -s - "$target"; then
+    continue
+  fi
+  tmp=$(mktemp "$themes_dir/.omarchy-glass.XXXXXX" 2>/dev/null) || continue
+  if printf '%s\n' "$body" >"$tmp" 2>/dev/null; then
+    chmod 644 "$tmp" 2>/dev/null
+    mv -f "$tmp" "$target" 2>/dev/null || rm -f "$tmp"
+  else
+    rm -f "$tmp"
+  fi
+done
+
+exit 0

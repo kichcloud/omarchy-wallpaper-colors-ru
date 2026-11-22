@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Ставит пользовательские конфиги, от которых зависит внешний вид плагина:
+# палитру Vesktop, CSS стекла, хук темы, альфу оболочки и Hyprland.
+# Идемпотентно: можно вызывать при каждом запуске/переключении стиля.
+set -euo pipefail
+
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+HOME_DIR=${HOME:-/home/kich}
+
+cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
+   "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"
+mkdir -p "$HOME_DIR/.local/share/omarchy-glass"
+cp "$ROOT/assets/glass/style.css" "$HOME_DIR/.local/share/omarchy-glass/style.css"
+cp "$ROOT/assets/glass/glass-layer.css" "$HOME_DIR/.local/share/omarchy-glass/glass-layer.css"
+
+mkdir -p "$HOME_DIR/.config/omarchy/hooks/theme-set.d"
+cp "$ROOT/assets/hooks/omarchy-glass" "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
+chmod +x "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
+
+# Единая прозрачность и блюр для всех окон.
+cp "$ROOT/assets/omarchy/uniform-glass.lua" "$HOME_DIR/.config/hypr/uniform-glass.lua"
+HL="$HOME_DIR/.config/hypr/hyprland.lua"
+grep -q 'require("hypr.uniform-glass")' "$HL" 2>/dev/null || \
+  printf '\nrequire("hypr.uniform-glass") -- uniform transparency + blur for every window and layer\n' >>"$HL"
+
+# Альфа панелей оболочки: точечно обновляем известные секции, остальное сохраняем.
+python3 - "$HOME_DIR" "${1:-0.85}" <<'PY'
+import re, sys, pathlib
+home = pathlib.Path(sys.argv[1])
+alpha = sys.argv[2]
+p = home / ".config/omarchy/shell.toml"
+text = p.read_text() if p.exists() else ""
+for s in ("bar", "popups", "tooltip", "notifications", "launcher", "menu", "polkit", "lock"):
+    pat = re.compile(r"(?ms)^\[" + s + r"\][ \t]*\n(.*?)(?=^\[|\Z)")
+    body = f"background-alpha = {alpha}\n"
+    if pat.search(text):
+        text = pat.sub(lambda m: f"[{s}]\n" + body +
+                       re.sub(r"^background-alpha[ \t]*=.*\n?", "", m.group(1), flags=re.M),
+                       text, count=1)
+    else:
+        text += f"\n[{s}]\n" + body
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(text)
+PY
+
+# Vesktop: наша тема и непрозрачное содержимое (альфу даёт композитор, как у folio).
+VS="$HOME_DIR/.config/vesktop/settings/settings.json"
+if [[ -f $VS ]] && command -v jq >/dev/null; then
+  tmp=$(mktemp)
+  jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$VS" >"$tmp" && mv "$tmp" "$VS"
+fi
+
+# Бар: сплошная поверхность, как у остальных окон (не glassy).
+omarchy-bar background opaque >/dev/null 2>&1 || true
+
+# Пересобрать палитру/тему под новые шаблоны.
+if [[ -f "$ROOT/bin/wallpaper-colors" ]]; then
+  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$(<"$HOME_DIR/.local/state/omarchy/current/theme.name")" >/dev/null 2>&1 || true
+fi
+hyprctl reload >/dev/null 2>&1 || true

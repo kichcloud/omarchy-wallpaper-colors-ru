@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+"$ROOT/bin/install-config" >/dev/null 2>&1 || true
 THEME=wallpaper-glass
 DEST="$HOME/.config/omarchy/themes/$THEME"
 MARK="$DEST/.installed-by-wallpaper-colors"

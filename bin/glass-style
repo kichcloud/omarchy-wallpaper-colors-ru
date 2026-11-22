@@ -3,6 +3,7 @@
 # Вызывается кнопкой «Стиль» в панели «Цвета обоев».
 set -euo pipefail
 
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 ST=~/.local/state/omarchy/uniform-glass
 mkdir -p "$ST"
 mode=${1:-status}
@@ -13,12 +14,15 @@ if [[ $mode == status ]]; then
 fi
 [[ $mode == glass || $mode == opaque ]] || { echo "usage: glass-style [glass|opaque|status]" >&2; exit 2; }
 
-# glass → glassy/kich.osd/0.85, opaque → opaque/omarchy.osd/1.0
+# glass → window-glassy/kich.osd/0.85, opaque → window-opaque/omarchy.osd/1.0
 bg=glassy; osd_on=kich.osd; osd_off=omarchy.osd; alpha=0.85
 if [[ $mode == opaque ]]; then
   bg=opaque; osd_on=omarchy.osd; osd_off=kich.osd; alpha=1.0
 fi
 printf '%s\n' "$mode" >"$ST/style"
+
+# Гарантируем, что все конфиги плагина на месте (в т.ч. на новой машине).
+"$ROOT/bin/install-config" "$alpha" >/dev/null 2>&1 || true
 
 # Штатные тумблеры меню: галочки совпадают с видом, без побочки
 # omarchy-hyprland-window-transparency (он дописывает alpha=0.65 в тему).
