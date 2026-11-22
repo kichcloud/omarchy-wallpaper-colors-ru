@@ -44,6 +44,7 @@ reapply() {
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null
   # Курсор перекрашивается тут же, без отдельного плагина и хуков.
   python3 "$here/cursor-recolor" apply >/dev/null 2>&1 || true
+  python3 "$here/opencode-theme" >/dev/null 2>&1 || true
 }
 
 # Принудительный режим из $modef, иначе порог яркости 0.6.

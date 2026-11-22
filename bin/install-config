@@ -146,3 +146,4 @@ hyprctl reload >/dev/null 2>&1 || true
 
 # Курсор тоже применяется здесь — отдельный Process в Service.qml не нужен.
 [[ -f "$ROOT/bin/cursor-recolor" ]] && python3 "$ROOT/bin/cursor-recolor" apply >/dev/null 2>&1 || true
+[[ -f "$ROOT/bin/opencode-theme" ]] && python3 "$ROOT/bin/opencode-theme" >/dev/null 2>&1 || true

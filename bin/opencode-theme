@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Пишет палитру активной темы в состояние TUI OpenCode."""
+import json, tomllib
+from pathlib import Path
+
+home = Path.home()
+colors_file = home / ".local/state/omarchy/current/theme/colors.toml"
+target = home / ".local/state/opencode/latest/tui/system-theme.json"
+if not colors_file.exists():
+    raise SystemExit(0)
+try:
+    c = tomllib.loads(colors_file.read_text())
+except Exception:
+    raise SystemExit(0)
+
+get = lambda k, default: c.get(k, default)
+palette = [
+    get("background", "#242424"), get("red", "#f62b5a"), get("green", "#47b413"),
+    get("yellow", "#e3c401"), get("blue", "#24acd4"), get("magenta", "#f2affd"),
+    get("cyan", "#13c299"), get("foreground", "#e6e6e6"),
+    get("dark_background", "#616161"), get("bright_red", "#ff4d51"),
+    get("bright_green", "#35d450"), get("bright_yellow", "#e9e836"),
+    get("bright_blue", "#5dc5f8"), get("bright_magenta", "#feabf2"),
+    get("bright_cyan", "#24dfc4"), get("bright_foreground", "#ffffff"),
+]
+data = {}
+try:
+    data = json.loads(target.read_text())
+except Exception:
+    pass
+colors = data.get("colors", {}) if isinstance(data, dict) else {}
+colors.update({
+    "palette": palette,
+    "defaultForeground": get("foreground", "#ffffff"),
+    "defaultBackground": get("background", "#242424"),
+    "cursorColor": get("foreground", "#ffffff"),
+    "highlightBackground": get("selection", "#000000"),
+    "highlightForeground": get("selection_foreground", "#ffffff"),
+})
+target.parent.mkdir(parents=True, exist_ok=True)
+tmp = target.with_suffix(".json.tmp")
+tmp.write_text(json.dumps({"colors": colors}, separators=(",", ":")) + "\n")
+tmp.replace(target)
