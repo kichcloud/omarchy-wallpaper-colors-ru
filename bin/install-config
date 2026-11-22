@@ -45,10 +45,21 @@ p.write_text(text)
 PY
 }
 
+# Альфа поверхностей Vesktop из того же ползунка, что и у всех остальных.
+vesktop_alpha() {
+  local data=$HOME_DIR/.local/share/omarchy-glass
+  mkdir -p "$data"
+  printf ':root {\n  --oc-s0: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s1: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s2: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s3: rgba(var(--oc-bg-rgb), %s) !important;\n  --oc-s4: rgba(var(--oc-bg-rgb), %s) !important;\n}\n' \
+    "$alpha" "$alpha" "$alpha" "$alpha" "$alpha" >"$data/alpha.css"
+  bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" \
+    "$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || echo wallpaper-glass)" >/dev/null 2>&1 || true
+}
+
 if [[ ${1:-} == --light ]]; then
   alpha=${2:-$default_alpha}
   valid_alpha_value "$alpha" || alpha=$default_alpha
   shell_alpha
+  vesktop_alpha
   # Lua-конфиг Hyprland читает именно этот файл — держим его в синхроне с shell.toml.
   printf '%s\n' "$alpha" >"$STATE_DIR/glass-alpha"
   reload_hypr
@@ -97,7 +108,7 @@ configure_vesktop() {
   local vs=$HOME_DIR/.config/vesktop/settings/settings.json tmp
   [[ -f $vs ]] && command -v jq >/dev/null || return 0
   tmp=$(mktemp)
-  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$vs" >"$tmp"; then
+  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = true' "$vs" >"$tmp"; then
     mv "$tmp" "$vs"
   else
     rm -f "$tmp"
@@ -190,6 +201,7 @@ restore_blur() {
 migrate_state
 deploy_assets
 shell_alpha
+vesktop_alpha
 configure_vesktop
 configure_steam
 configure_osd

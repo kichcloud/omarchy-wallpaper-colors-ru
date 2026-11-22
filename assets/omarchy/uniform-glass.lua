@@ -63,6 +63,14 @@ hl.window_rule({
   opacity = "1 override 1 override",
 })
 
+-- Vesktop рисует прозрачный фон сам (native Electron transparency + CSS),
+-- поэтому композиторская opacity ему не нужна: она делала бы прозрачным и текст.
+hl.window_rule({
+  name = "vesktop-native-alpha",
+  match = { class = "vesktop" },
+  opacity = "1 override 1 override",
+})
+
 -- Все окна, включая браузер, остаются одинаково прозрачными (A).
 -- Раньше здесь было исключение для полноэкранного видео, но оно срабатывало
 -- и при "на всю ширину" (maximized) — браузер становился непрозрачным.

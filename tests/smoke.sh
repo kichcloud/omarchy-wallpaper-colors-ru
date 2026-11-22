@@ -27,6 +27,10 @@ restore() {
     if [[ -f $backup/$k ]]; then cp "$backup/$k" "$ST/$k"; else rm -f "$ST/$k"; fi
   done
   [[ -f $backup/theme.name ]] && cp "$backup/theme.name" "$CUR/theme.name"
+  # Производные конфиги тоже вернуть к исходной альфе.
+  if [[ -f $backup/glass-alpha ]]; then
+    "$BIN/install-config" --light "$(cat "$backup/glass-alpha")" >/dev/null 2>&1 || true
+  fi
   rm -rf "$backup"
 }
 trap restore EXIT
@@ -57,6 +61,10 @@ $BIN/glass-style alpha 0.64 >/dev/null 2>&1
 check 'alpha → glass-alpha' eq "$(file "$ST/glass-alpha")" 0.64
 check 'alpha → foot.ini' grep -q 'alpha=0.64' "$HOME/.config/foot/foot.ini" 2>/dev/null
 check 'alpha → shell.toml' grep -q 'background-alpha = 0.64' "$HOME/.config/omarchy/shell.toml" 2>/dev/null
+check 'Vesktop transparent=true' python3 -c 'import json,sys; assert json.load(open(sys.argv[1])).get("transparent") is True' "$HOME/.config/vesktop/settings/settings.json"
+check 'alpha.css следует за ползунком' bash -c 'grep -q "rgba(var(--oc-bg-rgb), $(cat "$1"))" "$2"' _ "$ST/glass-alpha" "$HOME/.local/share/omarchy-glass/alpha.css"
+check 'тема Vencord содержит alpha' grep -q 'rgba(var(--oc-bg-rgb),' "$HOME/.config/vesktop/themes/omarchy-glass.theme.css"
+check 'Vesktop исключён из opacity' grep -q 'vesktop-native-alpha' "$HOME/.config/hypr/uniform-glass.lua"
 
 $BIN/glass-style blur 8 >/dev/null 2>&1
 check 'blur → glass-blur' eq "$(file "$ST/glass-blur")" 8

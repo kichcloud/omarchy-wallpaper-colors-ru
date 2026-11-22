@@ -26,6 +26,9 @@ compose() {
     printf '\n'
   fi
   cat "$data/style.css"
+  # Поверхностный alpha от ползунка плагина; кладётся последним, чтобы
+  # переопределить сплошные цвета из style.css.
+  [[ -f $data/alpha.css ]] && cat "$data/alpha.css"
 }
 
 body=$(compose) || exit 0
