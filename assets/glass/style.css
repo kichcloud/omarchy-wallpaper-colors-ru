@@ -470,9 +470,9 @@ body,
 
 /* Квадратные углы для всего, кроме аватарок, каналов/папок и индикаторов
    статуса — им Discord задаёт форму сам, в т.ч. масками. */
-#app-mount *:not([class*="avatar"] *):not([class*="icon"]),
-#app-mount *:not([class*="avatar"] *):not([class*="icon"])::before,
-#app-mount *:not([class*="avatar"] *):not([class*="icon"])::after
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="icon"]):not([class*="icon"] *),
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="icon"]):not([class*="icon"] *)::before,
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="icon"]):not([class*="icon"] *)::after
 {
   border-radius: 0 !important;
   clip-path: none !important;
