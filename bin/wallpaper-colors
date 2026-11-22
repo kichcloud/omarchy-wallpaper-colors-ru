@@ -80,6 +80,10 @@ reset() {
   ours "$target" || return
   if [[ -f $state/backup.$theme.colors.toml ]]; then
     mv "$state/backup.$theme.colors.toml" "$target"
+  elif [[ -f $here/../themes/$theme/colors.toml ]]; then
+    # У собственной темы плагина нет стокового бэкапа — возвращаем цвета,
+    # с которыми она поставляется, а не оставляем тему без палитры вообще.
+    cp "$here/../themes/$theme/colors.toml" "$target"
   else
     rm "$target"; rmdir --ignore-fail-on-non-empty "$themes/$theme"
   fi
@@ -107,15 +111,25 @@ sources() {
     '{theme:$t,locked:false,active:$a,mode:$m,colors:$c}'
 }
 
+source_count() {
+  matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null |
+    grep -c -E '^#[0-9a-fA-F]{6}$' || true
+}
+
 pick() {
+  local n=${1:-}
+  [[ $n =~ ^[0-9]+$ ]] || { echo "Использование: wallpaper-colors pick <индекс>" >&2; return 2; }
   read_current
+  need_matugen
+  local max; max=$(source_count)
+  (( max > 0 && n < max )) || { echo "Нет цвета с индексом $n (доступно $max)" >&2; return 2; }
   tmp=$(mktemp "$state/.off.XXXXXX"); grep -vxF "$theme" "$off" >"$tmp" || true; mv "$tmp" "$off"
   tmp=$(mktemp "$state/.picks.XXXXXX")
-  if [[ $1 == 0 ]]; then
+  if [[ $n == 0 ]]; then
     jq --arg i "$image" 'del(.[$i])' "$picks" 2>/dev/null >"$tmp" || echo '{}' >"$tmp"
   else
-    jq --arg i "$image" --argjson n "$1" '.[$i] = $n' "$picks" 2>/dev/null >"$tmp" ||
-      jq -n --arg i "$image" --argjson n "$1" '{($i): $n}' >"$tmp"
+    jq --arg i "$image" --argjson n "$n" '.[$i] = $n' "$picks" 2>/dev/null >"$tmp" ||
+      jq -n --arg i "$image" --argjson n "$n" '{($i): $n}' >"$tmp"
   fi
   mv "$tmp" "$picks"; tmp=""; sync
 }

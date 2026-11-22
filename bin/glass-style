@@ -21,8 +21,9 @@ fi
 # Текущие значения для панели: JSON.
 if [[ $mode == values ]]; then
   a=$(cat "$alpha_file" 2>/dev/null || true)
-  [[ -n $a ]] || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
+  [[ $a =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
   b=$(cat "$blur_file" 2>/dev/null || echo 4)
+  [[ $b =~ ^[0-9]+$ ]] && (( b <= 30 )) || b=4
   jq -nc --argjson a "$a" --argjson b "$b" '{alpha:$a, blur:$b}'
   exit 0
 fi
