@@ -1,27 +1,30 @@
 #!/usr/bin/env bash
-# Ставит пользовательские конфиги, от которых зависит внешний вид плагина:
-# палитру Vesktop, CSS стекла, хук темы, альфу оболочки и Hyprland.
+# Ставит пользовательские конфиги, от которых зависит внешний вид плагина.
 # Идемпотентно: можно вызывать при каждом запуске/переключении стиля.
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 HOME_DIR=${HOME:-/home/kich}
+source "$ROOT/bin/common.sh"
 
-# По умолчанию берём альфу из текущего стиля: иначе рестарт оболочки
-# (Service.qml вызывает install-config без аргументов) сбросил бы 1.0 → 0.85.
-style=$(cat "$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-style" 2>/dev/null || true)
-default_alpha=$(cat "$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-alpha" 2>/dev/null || true)
-if [[ ! $default_alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]]; then
+THEME=wallpaper-glass
+DEST=$HOME_DIR/.config/omarchy/themes/$THEME
+MARK=$DEST/.installed-by-wallpaper-colors
+LOCK_DIR=$HOME_DIR/.config/omarchy/lock-designs
+LOCK_ID=my-wallpaperglass
+
+style=$(cat "$STATE_DIR/glass-style" 2>/dev/null || true)
+default_alpha=$(cat "$STATE_DIR/glass-alpha" 2>/dev/null || true)
+valid_alpha_value "$default_alpha" || {
   default_alpha=0.85
   [[ $style == opaque ]] && default_alpha=1.0
-fi
+}
 alpha=${1:-$default_alpha}
 # Аргумент от ползунка тоже проверяем: битое значение не должно попасть в shell.toml.
-[[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || alpha=$default_alpha
+valid_alpha_value "$alpha" || alpha=$default_alpha
 
-# Обновление только альфы оболочки. Ползунок прозрачности вызывает именно этот
-# путь: shell.toml уже читается оболочкой с watchChanges, поэтому ни смены
-# темы, ни ретината приложений, ни перезапуска оболочки не требуется.
+# Обновление только альфы оболочки: shell.toml читается ей вживую, поэтому
+# ползунку не нужны ни смена темы, ни ретинат приложений, ни рестарт оболочки.
 shell_alpha() {
 python3 - "$HOME_DIR" "$alpha" <<'PY'
 import re, sys, pathlib
@@ -44,132 +47,147 @@ PY
 
 if [[ ${1:-} == --light ]]; then
   alpha=${2:-$default_alpha}
-  [[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || alpha=$default_alpha
+  valid_alpha_value "$alpha" || alpha=$default_alpha
   shell_alpha
   # Lua-конфиг Hyprland читает именно этот файл — держим его в синхроне с shell.toml.
-  printf '%s\n' "$alpha" >"$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-alpha"
-  hyprctl reload >/dev/null 2>&1 || true
+  printf '%s\n' "$alpha" >"$STATE_DIR/glass-alpha"
+  reload_hypr
   exit 0
 fi
 
-# Миграция старых каталогов состояния в один общий.
-STDIR="$HOME_DIR/.local/state/omarchy/wallpaper-colors"
-OLD="$HOME_DIR/.local/state/omarchy/uniform-glass"
-if [[ -d $OLD ]]; then
-  for k in style alpha blur; do
-    [[ -f $OLD/$k ]] && mv "$OLD/$k" "$STDIR/glass-$k"
-  done
-  rmdir "$OLD" 2>/dev/null || true
-fi
-OLD="$STDIR/backups"
-if [[ -d $OLD ]]; then
-  for f in "$OLD"/*; do
-    [[ -f $f ]] && mv "$f" "$STDIR/backup.$(basename "$f")"
-  done
-  rmdir "$OLD" 2>/dev/null || true
-fi
-OLD="$STDIR/cursor"
-if [[ -f $OLD/config.json ]]; then mv "$OLD/config.json" "$STDIR/cursor.json"; fi
-if [[ -f $OLD/.lock ]]; then mv "$OLD/.lock" "$STDIR/cursor.lock"; fi
-rmdir "$OLD" 2>/dev/null || true
+migrate_state() {
+  local old=$HOME_DIR/.local/state/omarchy/uniform-glass k
+  if [[ -d $old ]]; then
+    for k in style alpha blur; do
+      [[ -f $old/$k ]] && mv "$old/$k" "$STATE_DIR/glass-$k"
+    done
+    rmdir "$old" 2>/dev/null || true
+  fi
+  old=$STATE_DIR/backups
+  if [[ -d $old ]]; then
+    local f
+    for f in "$old"/*; do
+      [[ -f $f ]] && mv "$f" "$STATE_DIR/backup.$(basename "$f")"
+    done
+    rmdir "$old" 2>/dev/null || true
+  fi
+  old=$STATE_DIR/cursor
+  [[ -f $old/config.json ]] && mv "$old/config.json" "$STATE_DIR/cursor.json"
+  [[ -f $old/.lock ]] && mv "$old/.lock" "$STATE_DIR/cursor.lock"
+  rmdir "$old" 2>/dev/null || true
+}
 
-cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
-   "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"
-mkdir -p "$HOME_DIR/.local/share/omarchy-glass"
-cp "$ROOT/assets/glass/style.css" "$HOME_DIR/.local/share/omarchy-glass/style.css"
+deploy_assets() {
+  cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
+     "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"
+  mkdir -p "$HOME_DIR/.local/share/omarchy-glass"
+  cp "$ROOT/assets/glass/style.css" "$HOME_DIR/.local/share/omarchy-glass/style.css"
 
-mkdir -p "$HOME_DIR/.config/omarchy/hooks/theme-set.d"
-cp "$ROOT/assets/hooks/omarchy-glass" "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
-chmod +x "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
+  mkdir -p "$HOME_DIR/.config/omarchy/hooks/theme-set.d"
+  cp "$ROOT/assets/hooks/omarchy-glass" "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
+  chmod +x "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
 
-# Единая прозрачность и блюр для всех окон.
-cp "$ROOT/assets/omarchy/uniform-glass.lua" "$HOME_DIR/.config/hypr/uniform-glass.lua"
-HL="$HOME_DIR/.config/hypr/hyprland.lua"
-grep -q 'require("hypr.uniform-glass")' "$HL" 2>/dev/null || \
-  printf '\nrequire("hypr.uniform-glass") -- uniform transparency + blur for every window and layer\n' >>"$HL"
+  # Единая прозрачность и блюр для всех окон.
+  cp "$ROOT/assets/omarchy/uniform-glass.lua" "$HOME_DIR/.config/hypr/uniform-glass.lua"
+  local hl=$HOME_DIR/.config/hypr/hyprland.lua
+  grep -q 'require("hypr.uniform-glass")' "$hl" 2>/dev/null || \
+    printf '\nrequire("hypr.uniform-glass") -- uniform transparency + blur for every window and layer\n' >>"$hl"
+}
 
-# Альфа панелей оболочки: точечно обновляем известные секции, остальное сохраняем.
-shell_alpha
-
-# Vesktop: наша тема и непрозрачное содержимое (альфу даёт композитор, как у folio).
-VS="$HOME_DIR/.config/vesktop/settings/settings.json"
-if [[ -f $VS ]] && command -v jq >/dev/null; then
+configure_vesktop() {
+  local vs=$HOME_DIR/.config/vesktop/settings/settings.json tmp
+  [[ -f $vs ]] && command -v jq >/dev/null || return 0
   tmp=$(mktemp)
-  jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$VS" >"$tmp" && mv "$tmp" "$VS"
-fi
+  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$vs" >"$tmp"; then
+    mv "$tmp" "$vs"
+  else
+    rm -f "$tmp"
+  fi
+}
 
-# OSD встроен в этот плагин — стоковый и старый клон больше не нужны.
-omarchy plugin disable kich.osd >/dev/null 2>&1 || true
-omarchy plugin disable omarchy.osd >/dev/null 2>&1 || true
+configure_osd() {
+  # OSD встроен в этот плагин — стоковый и старый клон больше не нужны.
+  omarchy plugin disable kich.osd >/dev/null 2>&1 || true
+  omarchy plugin disable omarchy.osd >/dev/null 2>&1 || true
+}
 
-# Синхронизировать тумблер окон со стилем — иначе foot теряет blur=yes.
-T=${XDG_STATE_HOME:-$HOME_DIR/.local/state}/omarchy/toggles/hypr
-wmode=glassy
-[[ $style == opaque ]] && wmode=opaque
-rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
-wsrc=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$wmode.lua
-[[ -f $wsrc ]] && cp "$wsrc" "$T/$(basename "$wsrc")"
-omarchy-theme-set-glass >/dev/null 2>&1 || true
+configure_window_toggle() {
+  # Синхронизировать тумблер окон со стилем — иначе foot теряет blur=yes.
+  local t=${XDG_STATE_HOME:-$HOME_DIR/.local/state}/omarchy/toggles/hypr
+  local wmode=glassy wsrc
+  [[ $style == opaque ]] && wmode=opaque
+  rm -f "$t/window-glassy.lua" "$t/window-opaque.lua"
+  wsrc=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$wmode.lua
+  [[ -f $wsrc ]] && cp "$wsrc" "$t/$(basename "$wsrc")"
+  omarchy-theme-set-glass >/dev/null 2>&1 || true
+}
 
-# Бар: сплошная поверхность, как у остальных окон (не glassy).
-omarchy-bar background opaque >/dev/null 2>&1 || true
+install_theme() {
+  # Рабочий стол: тема рядом со стоковыми, в штатной карусели.
+  if [[ ! -f $MARK ]]; then
+    mkdir -p "$DEST"
+    cp -a "$ROOT/themes/$THEME/." "$DEST/"
+    printf 'installed by kich.wallpaper-colors-ru\n' >"$MARK"
+    # Не трогаем текущие обои пользователя, только включаем тему.
+    OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME" >/dev/null 2>&1 || true
+    "$ROOT/bin/wallpaper-colors" sync >/dev/null 2>&1 || true
+  fi
+  # Превью обновляем всегда: без preview-unlock.png темы нет в карусели,
+  # а unlock.png использует сам Plymouth.
+  cp "$ROOT/themes/$THEME/preview-unlock.png" "$DEST/preview-unlock.png"
+  cp "$ROOT/themes/$THEME/unlock.png" "$DEST/unlock.png"
+}
 
-THEME=wallpaper-glass
-DEST="$HOME_DIR/.config/omarchy/themes/$THEME"
-MARK="$DEST/.installed-by-wallpaper-colors"
-LOCK_DIR="$HOME_DIR/.config/omarchy/lock-designs"
-LOCK_ID=my-wallpaperglass
-
-# Рабочий стол: тема рядом со стоковыми, в штатной карусели.
-if [[ ! -f $MARK ]]; then
-  mkdir -p "$DEST"
-  cp -a "$ROOT/themes/$THEME/." "$DEST/"
-  printf 'installed by kich.wallpaper-colors-ru\n' >"$MARK"
-  # Не трогаем текущие обои пользователя, только включаем тему.
-  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME" >/dev/null 2>&1 || true
-  "$ROOT/bin/wallpaper-colors" sync >/dev/null 2>&1 || true
-fi
-
-# Превью обновляем всегда: без preview-unlock.png темы нет в карусели
-# omarchy-plymouth-switcher, а unlock.png использует сам Plymouth.
-cp "$ROOT/themes/$THEME/preview-unlock.png" "$DEST/preview-unlock.png"
-cp "$ROOT/themes/$THEME/unlock.png" "$DEST/unlock.png"
-
-# Lock: стандартный макет с цветами и обоями от плагина.
-if [[ ! -f $LOCK_DIR/WallpaperGlass.qml ]]; then
+install_lock() {
+  [[ -f $LOCK_DIR/WallpaperGlass.qml ]] && return 0
   mkdir -p "$LOCK_DIR"
   cp "$ROOT/lock/WallpaperGlass.qml" "$LOCK_DIR/WallpaperGlass.qml"
   mkdir -p "$LOCK_DIR/thirdparty-previews"
   cp "$ROOT/lock/preview/my-wallpaperglass.jpg" \
      "$LOCK_DIR/thirdparty-previews/my-wallpaperglass.jpg"
-  settings="$LOCK_DIR/settings.json"
+  local settings=$LOCK_DIR/settings.json tmp
   if [[ -f $settings ]] && command -v jq >/dev/null; then
     tmp=$(mktemp)
-    jq --arg id "$LOCK_ID" '.design = $id' "$settings" >"$tmp" && mv "$tmp" "$settings"
+    if jq --arg id "$LOCK_ID" '.design = $id' "$settings" >"$tmp"; then
+      mv "$tmp" "$settings"
+    else
+      rm -f "$tmp"
+    fi
   else
     printf '{\n  "design": "%s"\n}\n' "$LOCK_ID" >"$settings"
   fi
-fi
+}
 
-# Пересобрать палитру/тему под новые шаблоны.
-THEME_NAME=$(cat "$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
-[[ -n $THEME_NAME ]] || THEME_NAME=wallpaper-glass
-if [[ -f "$ROOT/bin/wallpaper-colors" ]]; then
+refresh_theme() {
+  # Пересобрать палитру/тему под новые шаблоны.
+  THEME_NAME=$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || true)
+  [[ -n $THEME_NAME ]] || THEME_NAME=$THEME
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME_NAME" >/dev/null 2>&1 || true
-fi
-# omarchy theme set может не дёрнуть хуки, если тема не менялась — вызываем
-# генератор темы Vesktop явно, чтобы CSS всегда соответствовал ассетам.
-bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" "$THEME_NAME" >/dev/null 2>&1 || true
-hyprctl reload >/dev/null 2>&1 || true
+  # omarchy theme set может не дёрнуть хуки, если тема не менялась — вызываем
+  # генератор темы Vesktop явно, чтобы CSS всегда соответствовал ассетам.
+  bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" "$THEME_NAME" >/dev/null 2>&1 || true
+  reload_hypr
+}
 
-# Курсор тоже применяется здесь — отдельный Process в Service.qml не нужен.
-[[ -f "$ROOT/bin/cursor-recolor" ]] && python3 "$ROOT/bin/cursor-recolor" apply >/dev/null 2>&1 || true
-[[ -f "$ROOT/bin/opencode-theme" ]] && python3 "$ROOT/bin/opencode-theme" >/dev/null 2>&1 || true
+restore_blur() {
+  # Хуки темы выше всегда пишут blur=yes. Если пользователь выключил блюр
+  # ползунком, возвращаем сохранённое значение — последним шагом.
+  local blurv
+  blurv=$(cat "$STATE_DIR/glass-blur" 2>/dev/null || true)
+  if [[ $blurv =~ ^[0-9]+$ ]] && (( blurv == 0 )); then
+    foot_set_blur no
+  fi
+}
 
-# Последним шагом: хуки темы выше всегда пишут blur=yes. Если пользователь
-# выключил блюр ползунком, возвращаем сохранённое значение в foot.ini.
-blurv=$(cat "$STDIR/glass-blur" 2>/dev/null || true)
-if [[ $blurv =~ ^[0-9]+$ ]] && (( blurv == 0 )); then
-  sed -i -E 's/^([[:space:]]*blur[[:space:]]*=[[:space:]]*).*/\1no/' \
-    "$HOME_DIR/.local/state/omarchy/current/theme/foot.ini" 2>/dev/null || true
-fi
+migrate_state
+deploy_assets
+shell_alpha
+configure_vesktop
+configure_osd
+configure_window_toggle
+omarchy-bar background opaque >/dev/null 2>&1 || true
+install_theme
+install_lock
+refresh_theme
+apply_tools "$ROOT"
+restore_blur

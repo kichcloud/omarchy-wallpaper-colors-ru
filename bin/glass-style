@@ -4,14 +4,16 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-ST=~/.local/state/omarchy/wallpaper-colors
+source "$ROOT/bin/common.sh"
+
+ST=$STATE_DIR
 mkdir -p "$ST"
 mode=${1:-status}
 
 style=$(cat "$ST/glass-style" 2>/dev/null || true)
 [[ $style == opaque || $style == glass ]] || style=glass
-alpha_file="$ST/glass-alpha"
-blur_file="$ST/glass-blur"
+alpha_file=$ST/glass-alpha
+blur_file=$ST/glass-blur
 
 if [[ $mode == status ]]; then
   echo "$style"
@@ -21,9 +23,9 @@ fi
 # Текущие значения для панели: JSON.
 if [[ $mode == values ]]; then
   a=$(cat "$alpha_file" 2>/dev/null || true)
-  [[ $a =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
+  valid_alpha_value "$a" || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
   b=$(cat "$blur_file" 2>/dev/null || echo 4)
-  [[ $b =~ ^[0-9]+$ ]] && (( b <= 30 )) || b=4
+  valid_blur "$b" || b=4
   jq -nc --argjson a "$a" --argjson b "$b" '{alpha:$a, blur:$b}'
   exit 0
 fi
@@ -31,21 +33,16 @@ fi
 # Ползунок прозрачности: 0.30 … 1.0.
 if [[ $mode == alpha ]]; then
   v=${2:-}
-  [[ $v =~ ^0?\.[0-9]+$ || $v =~ ^1(\.0+)?$ ]] || { echo "usage: glass-style alpha 0.30..1.0" >&2; exit 2; }
-  python3 -c 'import sys; v=float(sys.argv[1]); sys.exit(0 if 0.30<=v<=1.0 else 1)' "$v" || exit 2
+  valid_alpha_syntax "$v" || { echo "usage: glass-style alpha 0.30..1.0" >&2; exit 2; }
+  valid_alpha_range "$v" || exit 2
   # В штатном стиле ползунки скрыты; запоздавший процесс от ползунка не должен
   # превратить непрозрачный стиль в прозрачный.
   [[ $style == opaque ]] && exit 0
   printf '%s\n' "$v" >"$alpha_file"
-  # Сначала foot.ini — install-config вызывает omarchy theme set, который
-  # перезапускает терминалы. Иначе foot успеет прочитать_PROШЛУЮ альфу.
-  theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
-  for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \
-           ~/.local/state/omarchy/current/theme/foot.ini; do
-    [[ -f $f ]] || continue
-    sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$v/" "$f"
-  done
-  # Только альфа: оболочка сама следит за shell.toml, полная смена темы не нужна.
+  # Сначала foot.ini: install-config может перезапустить терминалы, и foot
+  # успеет прочитать предыдущую альфу, если записать её позже.
+  foot_set_alpha "$v"
+  # Оболочка сама следит за shell.toml — полная смена темы не нужна.
   "$ROOT/bin/install-config" --light "$v" >/dev/null 2>&1 || true
   exit 0
 fi
@@ -53,14 +50,13 @@ fi
 # Ползунок блюра: 0 … 30.
 if [[ $mode == blur ]]; then
   v=${2:-}
-  [[ $v =~ ^[0-9]+$ ]] && (( v <= 30 )) || { echo "usage: glass-style blur 0..30" >&2; exit 2; }
+  valid_blur "$v" || { echo "usage: glass-style blur 0..30" >&2; exit 2; }
   printf '%s\n' "$v" >"$blur_file"
   # Композитор отключает блюр при A=1.0, поэтому foot тоже не должен размывать.
   fb=no
   [[ $style == glass ]] && (( v > 0 )) && fb=yes
-  sed -i -E "s/^([[:space:]]*blur[[:space:]]*=[[:space:]]*).*/\1$fb/" \
-    ~/.local/state/omarchy/current/theme/foot.ini 2>/dev/null || true
-  hyprctl reload >/dev/null 2>&1 || true
+  foot_set_blur "$fb"
+  reload_hypr
   exit 0
 fi
 
@@ -72,18 +68,9 @@ alpha=0.85
 printf '%s\n' "$mode" >"$ST/glass-style"
 rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
 
-# Гарантируем, что все конфиги плагина на месте (в т.ч. на новой машине).
+# Тумблер окон, конфиги и хуки ставит install-config.
 "$ROOT/bin/install-config" "$alpha" >/dev/null 2>&1 || true
 
-# Тумблер окон и omarchy-theme-set-glass уже делает install-config выше.
-# Повторный вызов здесь затёр бы восстановленное значение blur из foot.ini.
-
-theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
-for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \
-           ~/.local/state/omarchy/current/theme/foot.ini; do
-  [[ -f $f ]] || continue
-  sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$alpha/" "$f"
-done
-
 # Перезапуск оболочки не нужен: ~/.config/omarchy/shell.toml читается ей вживую.
-hyprctl reload >/dev/null 2>&1 || true
+foot_set_alpha "$alpha"
+reload_hypr

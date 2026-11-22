@@ -3,9 +3,10 @@
 set -euo pipefail
 
 here=$(dirname "$(readlink -f "$0")")
-state=~/.local/state/omarchy/wallpaper-colors
-cur=~/.local/state/omarchy/current
-themes=~/.config/omarchy/themes
+source "$here/common.sh"
+state=$STATE_DIR
+cur=$CURRENT_DIR
+themes=$HOME/.config/omarchy/themes
 picks=$state/picks.json
 off=$state/off
 modef=$state/mode
@@ -42,9 +43,8 @@ ours()       { [[ -f $1 ]] && [[ $(head -n1 "$1") == "$marker" ]]; }
 picked()     { jq -r --arg i "$image" '.[$i] // 0' "$picks" 2>/dev/null || echo 0; }
 reapply() {
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$theme" >/dev/null
-  # Курсор перекрашивается тут же, без отдельного плагина и хуков.
-  python3 "$here/cursor-recolor" apply >/dev/null 2>&1 || true
-  python3 "$here/opencode-theme" >/dev/null 2>&1 || true
+  # Курсор и OpenCode перекрашиваются тут же, без отдельного плагина и хуков.
+  apply_tools "$here/.."
 }
 
 # Принудительный режим из $modef, иначе порог яркости 0.6.
