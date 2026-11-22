@@ -11,15 +11,29 @@ if sf then
   if v == "glass" or v == "opaque" then style = v end
   sf:close()
 end
-local A = (style == "opaque") and 1.0 or 0.85
+local stateDir = (os.getenv("HOME") or "") .. "/.local/state/omarchy/uniform-glass"
+
+-- Ползунки плагина пишут сюда переопределения; без них — стиль по умолчанию.
+local function numberFrom(name, fallback, min, max)
+  local f = io.open(stateDir .. "/" .. name, "r")
+  if not f then return fallback end
+  local n = tonumber((f:read("*l") or ""):match("^[%d%.]+$"))
+  f:close()
+  if not n then return fallback end
+  return math.max(min, math.min(max, n))
+end
+
+local alphaOverride = numberFrom("alpha", nil, 0.30, 1.0)
+local A = alphaOverride or ((style == "opaque") and 1.0 or 0.85)
+local blurSize = numberFrom("blur", 4, 0, 30)
 
 hl.config({
   decoration = {
     active_opacity = A,
     inactive_opacity = A,
     blur = {
-      enabled = true,
-      size = 4,
+      enabled = blurSize > 0,
+      size = blurSize,
       passes = 2,
       brightness = 0.75,
       popups = true,

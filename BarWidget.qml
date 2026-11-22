@@ -25,6 +25,10 @@ Panel {
   property bool applying: false
   property string glassStyle: "glass"
   property string pendingStyle: ""
+  property real pendingAlpha: 0.85
+  property real shellAlpha: 0.85
+  property real blurSize: 4
+  readonly property real alphaPercent: Math.max(0, Math.min(100, (1 - root.shellAlpha) / 0.7 * 100))
   property string error: ""
   property int cursor: 0
   property bool cursorActive: false
@@ -63,10 +67,21 @@ Panel {
     root.pendingStyle = s; root.applying = true
     styleProc.command = [root.styleBin, s]; styleProc.running = true
   }
+  function setAlpha() {
+    if (alphaProc.running) return
+    root.pendingAlpha = Number((1 - alphaSlider.liveValue / 100 * 0.7).toFixed(2))
+    alphaProc.command = [root.styleBin, "alpha", String(root.pendingAlpha)]; alphaProc.running = true
+  }
+  function setBlur() {
+    if (blurProc.running) return
+    blurProc.command = [root.styleBin, "blur", String(Math.round(blurSlider.liveValue))]
+    blurProc.running = true
+  }
 
   onOpenedChanged: if (opened) {
     root.cursorActive = false
     styleStatusProc.running = true
+    tuneProc.running = true
     refresh()
   }
 
@@ -101,6 +116,24 @@ Panel {
       root.refresh()
     }
   }
+  Process {
+    id: tuneProc
+    command: [root.styleBin, "values"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var v = JSON.parse(String(text || "").trim())
+          root.shellAlpha = v.alpha; root.blurSize = v.blur
+        } catch (e) {}
+      }
+    }
+  }
+  Process {
+    id: alphaProc
+    onExited: function(c) { if (c === 0) root.shellAlpha = root.pendingAlpha }
+  }
+  Process { id: blurProc; onExited: function(c) { if (c === 0) root.blurSize = Math.round(blurSlider.liveValue) } }
   Process { id: pickProc; onExited: function(c) { root.finish(c, "Не удалось применить цвет") } }
   Process { id: setModeProc; onExited: function(c) { root.finish(c, "Не удалось изменить режим") } }
 
@@ -223,6 +256,46 @@ Panel {
               onClicked: root.setGlassStyle(modelData.id)
             }
           }
+        }
+      }
+
+      PanelSectionHeader { text: "Прозрачность"; foreground: root.fg; fontFamily: root.fontFamily }
+      Row {
+        width: col.width; spacing: Style.space(8)
+        PanelSlider {
+          id: alphaSlider
+          bar: root.bar
+          width: col.width - Style.space(46)
+          minimum: 0; maximum: 100; step: 1; integer: true
+          value: root.alphaPercent
+          trackColor: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14)
+          fillColor: root.fg; knobColor: root.fg
+          onReleased: function(v) { root.setAlpha() }
+        }
+        T {
+          width: Style.space(38); horizontalAlignment: Text.AlignRight
+          text: Math.round(alphaSlider.liveValue) + "%"
+          font.pixelSize: Style.font.bodySmall
+        }
+      }
+
+      PanelSectionHeader { text: "Блюр"; foreground: root.fg; fontFamily: root.fontFamily }
+      Row {
+        width: col.width; spacing: Style.space(8)
+        PanelSlider {
+          id: blurSlider
+          bar: root.bar
+          width: col.width - Style.space(46)
+          minimum: 0; maximum: 30; step: 1; integer: true
+          value: root.blurSize
+          trackColor: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14)
+          fillColor: root.fg; knobColor: root.fg
+          onReleased: function(v) { root.setBlur() }
+        }
+        T {
+          width: Style.space(38); horizontalAlignment: Text.AlignRight
+          text: Math.round(blurSlider.liveValue) + "px"
+          font.pixelSize: Style.font.bodySmall
         }
       }
     }
