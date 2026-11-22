@@ -22,7 +22,6 @@ printf '%s\n' "$mode" >"$ST/style"
 
 # Штатные тумблеры меню: галочки совпадают с видом, без побочки
 # omarchy-hyprland-window-transparency (он дописывает alpha=0.65 в тему).
-omarchy-bar background "$bg" >/dev/null 2>&1 || true
 T=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles/hypr
 rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
 src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
