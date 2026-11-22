@@ -4,7 +4,8 @@
 OpenCode в режиме `system` на каждую сессию заново делает OSC-запрос к
 терминалу. При прозрачном foot часть запросов не успевает — сессия получает
 тему по умолчанию вместо нашей, и вкладки «чередуются». Поэтому генерируем
-полноценную тему и закрепляем её в cli.json: детекция больше не запускается.
+полноценную тему в формате встроенных (defs + theme) и закрепляем её в
+cli.json: детекция больше не запускается.
 """
 import json
 import tomllib
@@ -29,7 +30,6 @@ get = lambda k, d: c.get(k, d)
 
 
 def mix(a, b, t):
-    """Смешивает два hex-цвета: t=0 → a, t=1 → b."""
     a, b = a.lstrip("#"), b.lstrip("#")
     return "#" + "".join(
         f"{round(int(a[i:i+2], 16) * (1 - t) + int(b[i:i+2], 16) * t):02x}"
@@ -45,69 +45,93 @@ yellow = get("yellow", "#ebf087")
 blue = get("blue", "#709eed")
 magenta = get("magenta", "#c87aeb")
 cyan = get("cyan", "#74d4ea")
-orange = get("bright_orange", get("yellow", yellow))
+orange = get("bright_orange", yellow)
 muted = mix(bg, fg, 0.45)
-panel = mix(bg, fg, 0.06)
-element = mix(bg, fg, 0.11)
-border = mix(bg, fg, 0.22)
+panel = mix(bg, fg, 0.07) + "d9"
+element = mix(bg, fg, 0.12) + "d9"
+border = mix(bg, fg, 0.24)
 
-# Полная карта токенов темы OpenCode.
-palette = {
-    "primary": blue,
-    "secondary": cyan,
-    "accent": magenta,
-    "error": red,
-    "warning": yellow,
-    "success": green,
-    "info": cyan,
-    "text": fg,
-    "textMuted": muted,
-    "background": bg,
-    "backgroundPanel": panel,
-    "backgroundElement": element,
+# defs задаются именами, theme ссылается на них — как во встроенных темах.
+defs = {
+    "bg": bg,
+    "fg": fg,
+    "muted": muted,
+    "panel": panel,
+    "element": element,
     "border": border,
-    "borderActive": mix(bg, fg, 0.32),
+    "borderActive": mix(bg, fg, 0.34),
     "borderSubtle": mix(bg, fg, 0.16),
-    "diffAdded": green,
-    "diffRemoved": red,
-    "diffContext": muted,
-    "diffHunkHeader": muted,
-    "diffHighlightAdded": mix(panel, green, 0.35),
-    "diffHighlightRemoved": mix(panel, red, 0.35),
-    "diffAddedBg": mix(bg, green, 0.12),
-    "diffRemovedBg": mix(bg, red, 0.12),
-    "diffContextBg": panel,
-    "diffLineNumber": muted,
-    "diffAddedLineNumberBg": mix(bg, green, 0.12),
-    "diffRemovedLineNumberBg": mix(bg, red, 0.12),
-    "markdownText": fg,
-    "markdownHeading": blue,
-    "markdownLink": blue,
-    "markdownLinkText": cyan,
-    "markdownCode": green,
-    "markdownBlockQuote": muted,
-    "markdownEmph": yellow,
-    "markdownStrong": orange,
-    "markdownHorizontalRule": muted,
-    "markdownListItem": blue,
-    "markdownListEnumeration": cyan,
-    "markdownImage": blue,
-    "markdownImageText": cyan,
-    "markdownCodeBlock": fg,
-    "syntaxComment": muted,
-    "syntaxKeyword": magenta,
-    "syntaxFunction": blue,
-    "syntaxVariable": red,
-    "syntaxString": green,
-    "syntaxNumber": orange,
-    "syntaxType": yellow,
-    "syntaxOperator": cyan,
-    "syntaxPunctuation": fg,
+    "red": red,
+    "green": green,
+    "yellow": yellow,
+    "blue": blue,
+    "magenta": magenta,
+    "cyan": cyan,
+    "orange": orange,
+    "diffAddBg": mix(bg, green, 0.12) + "d9",
+    "diffDelBg": mix(bg, red, 0.12) + "d9",
+    "diffAddHi": mix(bg, green, 0.32),
+    "diffDelHi": mix(bg, red, 0.32),
+}
+
+palette = {
+    "primary": "blue",
+    "secondary": "cyan",
+    "accent": "magenta",
+    "error": "red",
+    "warning": "yellow",
+    "success": "green",
+    "info": "cyan",
+    "text": "fg",
+    "textMuted": "muted",
+    # OpenCode вызывает setBackgroundColor(background.base): непрозрачный цвет
+    # закрашивает терминал и убивает блюр/альфу foot.
+    "background": "transparent",
+    "backgroundPanel": "panel",
+    "backgroundElement": "element",
+    "border": "border",
+    "borderActive": "borderActive",
+    "borderSubtle": "borderSubtle",
+    "diffAdded": "green",
+    "diffRemoved": "red",
+    "diffContext": "muted",
+    "diffHunkHeader": "muted",
+    "diffHighlightAdded": "diffAddHi",
+    "diffHighlightRemoved": "diffDelHi",
+    "diffAddedBg": "diffAddBg",
+    "diffRemovedBg": "diffDelBg",
+    "diffContextBg": "panel",
+    "diffLineNumber": "muted",
+    "diffAddedLineNumberBg": "diffAddBg",
+    "diffRemovedLineNumberBg": "diffDelBg",
+    "markdownText": "fg",
+    "markdownHeading": "blue",
+    "markdownLink": "blue",
+    "markdownLinkText": "cyan",
+    "markdownCode": "green",
+    "markdownBlockQuote": "muted",
+    "markdownEmph": "yellow",
+    "markdownStrong": "orange",
+    "markdownHorizontalRule": "muted",
+    "markdownListItem": "blue",
+    "markdownListEnumeration": "cyan",
+    "markdownImage": "blue",
+    "markdownImageText": "cyan",
+    "markdownCodeBlock": "fg",
+    "syntaxComment": "muted",
+    "syntaxKeyword": "magenta",
+    "syntaxFunction": "blue",
+    "syntaxVariable": "red",
+    "syntaxString": "green",
+    "syntaxNumber": "orange",
+    "syntaxType": "yellow",
+    "syntaxOperator": "cyan",
+    "syntaxPunctuation": "fg",
 }
 
 theme = {
     "$schema": "https://opencode.ai/theme.json",
-    "defs": {f"c{i}": v for i, v in enumerate(dict.fromkeys(palette.values()), 1)},
+    "defs": defs,
     "theme": {k: {"dark": v, "light": v} for k, v in palette.items()},
 }
 
@@ -119,11 +143,9 @@ def write_json(path, data):
     tmp.replace(path)
 
 
-# Полноценная закреплённая тема.
 write_json(theme_file, theme)
 
-# Держим system-theme в актуальном состоянии на случай,
-# если пользователь временно переключится на «system».
+# Держим system-theme в актуальном состоянии на случай переключения на system.
 ansi = [bg, red, green, yellow, blue, magenta, cyan, fg,
         mix(bg, fg, 0.3), get("bright_red", red), get("bright_green", green),
         get("bright_yellow", yellow), get("bright_blue", blue),
