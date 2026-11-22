@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
-"""Синхронизирует тему OpenCode с палитрой активной темы Omarchy.
+"""Пишет палитру активной темы в состояние TUI OpenCode (system-theme.json).
 
-OpenCode в режиме `system` на каждую сессию заново делает OSC-запрос к
-терминалу. При прозрачном foot часть запросов не успевает — сессия получает
-тему по умолчанию вместо нашей, и вкладки «чередуются». Поэтому генерируем
-полноценную тему в формате встроенных (defs + theme) и закрепляем её в
-cli.json: детекция больше не запускается.
+OpenCode с theme.name = "system" берёт отсюда 16 ANSI-цветов и цвета фона/текста.
+Дополнительные манипуляции (закрепление темы, правка foot.ini) не помогали:
+вкладки всё равно получали разные цвета, поэтому оставлен только этот синк.
 """
 import json
 import tomllib
 from pathlib import Path
 
 home = Path.home()
-state = home / ".local/state/opencode/latest/tui"
-config_dir = home / ".config/opencode"
 colors_file = home / ".local/state/omarchy/current/theme/colors.toml"
-theme_file = config_dir / "themes/wallpaper-glass.json"
-cli_file = config_dir / "cli.json"
-system_theme = state / "system-theme.json"
-
+target = home / ".local/state/opencode/latest/tui/system-theme.json"
 if not colors_file.exists():
     raise SystemExit(0)
 try:
@@ -27,209 +20,30 @@ except Exception:
     raise SystemExit(0)
 
 get = lambda k, d: c.get(k, d)
-
-
-def mix(a, b, t):
-    a, b = a.lstrip("#"), b.lstrip("#")
-    return "#" + "".join(
-        f"{round(int(a[i:i+2], 16) * (1 - t) + int(b[i:i+2], 16) * t):02x}"
-        for i in (0, 2, 4)
-    )
-
-
-bg = get("background", "#1b1c21")
-fg = get("foreground", "#e4e2e6")
-red = get("red", "#ee7791")
-green = get("green", "#7ce99a")
-yellow = get("yellow", "#ebf087")
-blue = get("blue", "#709eed")
-magenta = get("magenta", "#c87aeb")
-cyan = get("cyan", "#74d4ea")
-orange = get("bright_orange", yellow)
-muted = mix(bg, fg, 0.45)
-panel = mix(bg, fg, 0.07) + "d9"
-element = mix(bg, fg, 0.12) + "d9"
-border = mix(bg, fg, 0.24)
-
-# defs задаются именами, theme ссылается на них — как во встроенных темах.
-defs = {
-    "bg": bg,
-    "fg": fg,
-    "muted": muted,
-    "panel": panel,
-    "element": element,
-    "border": border,
-    "borderActive": mix(bg, fg, 0.34),
-    "borderSubtle": mix(bg, fg, 0.16),
-    "red": red,
-    "green": green,
-    "yellow": yellow,
-    "blue": blue,
-    "magenta": magenta,
-    "cyan": cyan,
-    "orange": orange,
-    "diffAddBg": mix(bg, green, 0.12) + "d9",
-    "diffDelBg": mix(bg, red, 0.12) + "d9",
-    "diffAddHi": mix(bg, green, 0.32),
-    "diffDelHi": mix(bg, red, 0.32),
-}
-
-palette = {
-    "primary": "blue",
-    "secondary": "cyan",
-    "accent": "magenta",
-    "error": "red",
-    "warning": "yellow",
-    "success": "green",
-    "info": "cyan",
-    "text": "fg",
-    "textMuted": "muted",
-    # OpenCode вызывает setBackgroundColor(background.base): непрозрачный цвет
-    # закрашивает терминал и убивает блюр/альфу foot.
-    "background": "transparent",
-    "backgroundPanel": "panel",
-    "backgroundElement": "element",
-    "border": "border",
-    "borderActive": "borderActive",
-    "borderSubtle": "borderSubtle",
-    "diffAdded": "green",
-    "diffRemoved": "red",
-    "diffContext": "muted",
-    "diffHunkHeader": "muted",
-    "diffHighlightAdded": "diffAddHi",
-    "diffHighlightRemoved": "diffDelHi",
-    "diffAddedBg": "diffAddBg",
-    "diffRemovedBg": "diffDelBg",
-    "diffContextBg": "panel",
-    "diffLineNumber": "muted",
-    "diffAddedLineNumberBg": "diffAddBg",
-    "diffRemovedLineNumberBg": "diffDelBg",
-    "markdownText": "fg",
-    "markdownHeading": "blue",
-    "markdownLink": "blue",
-    "markdownLinkText": "cyan",
-    "markdownCode": "green",
-    "markdownBlockQuote": "muted",
-    "markdownEmph": "yellow",
-    "markdownStrong": "orange",
-    "markdownHorizontalRule": "muted",
-    "markdownListItem": "blue",
-    "markdownListEnumeration": "cyan",
-    "markdownImage": "blue",
-    "markdownImageText": "cyan",
-    "markdownCodeBlock": "fg",
-    "syntaxComment": "muted",
-    "syntaxKeyword": "magenta",
-    "syntaxFunction": "blue",
-    "syntaxVariable": "red",
-    "syntaxString": "green",
-    "syntaxNumber": "orange",
-    "syntaxType": "yellow",
-    "syntaxOperator": "cyan",
-    "syntaxPunctuation": "fg",
-}
-
-theme = {
-    "$schema": "https://opencode.ai/theme.json",
-    "defs": defs,
-    "theme": {k: {"dark": v, "light": v} for k, v in palette.items()},
-}
-
-
-def write_json(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-    tmp.replace(path)
-
-
-write_json(theme_file, theme)
-
-# Держим system-theme в актуальном состоянии на случай переключения на system.
-ansi = [bg, red, green, yellow, blue, magenta, cyan, fg,
-        mix(bg, fg, 0.3), get("bright_red", red), get("bright_green", green),
-        get("bright_yellow", yellow), get("bright_blue", blue),
-        get("bright_magenta", magenta), get("bright_cyan", cyan),
-        get("bright_foreground", "#ffffff")]
-try:
-    existing = json.loads(system_theme.read_text())
-    colors = existing.get("colors", {}) if isinstance(existing, dict) else {}
-except Exception:
-    colors = {}
-colors.update({
-    "palette": ansi,
-    "defaultForeground": fg,
-    "defaultBackground": bg,
-    "cursorColor": fg,
-    "highlightBackground": get("selection", blue),
-    "highlightForeground": get("selection_foreground", fg),
-})
-write_json(system_theme, {"colors": colors})
-
-# Закрепляем тему в cli.json, сохраняя остальные пользовательские настройки.
-try:
-    cli = json.loads(cli_file.read_text())
-except Exception:
-    cli = {}
-cli.setdefault("theme", {})
-cli["theme"]["name"] = "wallpaper-glass"
-cli["theme"]["mode"] = "dark"
-write_json(cli_file, cli)
-
-
-# foot отвечает на OSC-запросы приложений своей палитрой. Без явных цветов в
-# конфиге это дефольтная палитра, не совпадающая с темой, — из-за гонки ответа
-# разные вкладки OpenCode получают разные цвета. Прописываем палитру явно.
-foot_palette = [
-    get("background", "#1b1c21"),
-    red,
-    green,
-    yellow,
-    blue,
-    magenta,
-    cyan,
-    get("foreground", "#e4e2e6"),
-    get("dark_background", bg),
-    get("bright_red", red),
-    get("bright_green", green),
-    get("bright_yellow", yellow),
-    get("bright_blue", blue),
-    get("bright_magenta", magenta),
-    get("bright_cyan", cyan),
-    get("bright_foreground", "#ffffff"),
+palette = [
+    get("background", "#242424"), get("red", "#f62b5a"), get("green", "#47b413"),
+    get("yellow", "#e3c401"), get("blue", "#24acd4"), get("magenta", "#f2affd"),
+    get("cyan", "#13c299"), get("foreground", "#e6e6e6"),
+    get("dark_background", "#616161"), get("bright_red", "#ff4d51"),
+    get("bright_green", "#35d450"), get("bright_yellow", "#e9e836"),
+    get("bright_blue", "#5dc5f8"), get("bright_magenta", "#feabf2"),
+    get("bright_cyan", "#24dfc4"), get("bright_foreground", "#ffffff"),
 ]
-hexv = lambda v: v.lstrip("#")
-reg = "\n".join(f"regular{i}={hexv(v)}" for i, v in enumerate(foot_palette[:8]))
-bri = "\n".join(f"bright{i}={hexv(v)}" for i, v in enumerate(foot_palette[8:]))
-palette_block = "\n".join([
-    f"foreground={hexv(get('foreground', '#e4e2e6'))}",
-    f"background={hexv(get('background', '#1b1c21'))}",
-    reg, bri, "",
-])
-import re
-for foot in (
-    home / ".local/state/omarchy/current/theme/foot.ini",
-    home / ".config/omarchy/themes/wallpaper-glass/foot.ini",
-):
-    if not foot.exists():
-        continue
-    text = foot.read_text()
-    # Убираем ошибочный раздел [colors] и одинокие '[' от ранних версий скрипта.
-    text = re.sub(r"^\[colors\]\n(?:[^\[]*\n)*", "", text, flags=re.M)
-    text = re.sub(r"^\[\s*$", "", text, flags=re.M)
-    # Обновляем существующий [colors-dark], сохраняя alpha/blur.
-    def rebuild(m):
-        section = m.group(2)
-        kept = "\n".join(
-            line for line in section.splitlines()
-            if re.match(r"^\s*(alpha|blur|selection-foreground|selection-background|cursor)\s*=", line)
-        )
-        return m.group(1) + palette_block + kept + "\n"
-
-    if "[colors-dark]" in text:
-        text = re.sub(r"(\[colors-dark\]\n)(.*?)(?=\n\[|\Z)", rebuild, text, flags=re.S)
-    else:
-        text = text.rstrip() + "\n\n[colors-dark]\n" + palette_block
-    tmp = foot.with_suffix(".ini.tmp")
-    tmp.write_text(text)
-    tmp.replace(foot)
+data = {}
+try:
+    data = json.loads(target.read_text())
+except Exception:
+    pass
+colors = data.get("colors", {}) if isinstance(data, dict) else {}
+colors.update({
+    "palette": palette,
+    "defaultForeground": get("foreground", "#ffffff"),
+    "defaultBackground": get("background", "#242424"),
+    "cursorColor": get("foreground", "#ffffff"),
+    "highlightBackground": get("selection", "#000000"),
+    "highlightForeground": get("selection_foreground", "#ffffff"),
+})
+target.parent.mkdir(parents=True, exist_ok=True)
+tmp = target.with_suffix(".json.tmp")
+tmp.write_text(json.dumps({"colors": colors}, separators=(",", ":")) + "\n")
+tmp.replace(target)
