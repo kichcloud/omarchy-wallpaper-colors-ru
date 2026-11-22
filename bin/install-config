@@ -72,7 +72,6 @@ migrate_state() {
     rmdir "$old" 2>/dev/null || true
   fi
   old=$STATE_DIR/cursor
-  [[ -f $old/config.json ]] && mv "$old/config.json" "$STATE_DIR/cursor.json"
   [[ -f $old/.lock ]] && mv "$old/.lock" "$STATE_DIR/cursor.lock"
   rmdir "$old" 2>/dev/null || true
 }

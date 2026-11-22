@@ -7,8 +7,6 @@ import Quickshell.Io
 Item {
   id: root
 
-  property var shell: null
-
   readonly property string dir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, ""))
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
   property string lastBackground: ""

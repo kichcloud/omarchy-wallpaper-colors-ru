@@ -4,12 +4,12 @@
 Источник: https://github.com/kichcloud/omarchy-steam-accent (MIT, см. LICENSE).
 В плагине вызывается в режиме --once по событию смены палитры, без демона.
 """
-import base64, hashlib, json, math, os, re, socket, struct, subprocess, sys, time, urllib.request
+import base64, hashlib, json, math, os, re, socket, struct, subprocess, sys, urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
 HOME = Path.home()
-STEAM = Path(os.environ.get("STEAM_DIR", HOME / ".local/share/Steam"))
+STEAM = HOME / ".local/share/Steam"
 CSS_DIR = STEAM / "steamui/css"
 FLAG = HOME / ".steam/steam/.cef-enable-remote-debugging"
 CDP = "http://127.0.0.1:8080"
@@ -76,11 +76,7 @@ FAMILIES = (("red", ("red", "bright_red"), 25), ("orange", ("orange",), 55),
 
 def palette():
     out = subprocess.run(["omarchy-theme-color", "--all"], capture_output=True, text=True, check=True).stdout
-    p = dict(line.partition("\t")[::2] for line in out.splitlines() if "\t" in line)
-    forced = os.environ.get("STEAM_ACCENT_FORCE", "").strip()
-    if re.fullmatch("#[0-9a-fA-F]{6}", forced):
-        p["accent"] = forced
-    return p
+    return dict(line.partition("\t")[::2] for line in out.splitlines() if "\t" in line)
 
 
 class Mapper:
@@ -282,7 +278,6 @@ def refresh(css, sig):
 
 
 def main():
-    once = "--once" in sys.argv
     try:
         FLAG.parent.mkdir(parents=True, exist_ok=True)
         FLAG.touch()
@@ -290,12 +285,8 @@ def main():
         # Нет каталога Steam — CDP недоступен, но генерация/инъекция ещё могут
         # сработать, если Steam уже запущен с включённой отладкой.
         print("cannot create CDP flag:", e, file=sys.stderr)
-    css, sig = "", None
-    while True:
-        css, sig = refresh(css, sig)
-        if once:
-            return 0
-        time.sleep(5)
+    refresh("", None)
+    return 0
 
 
 if __name__ == "__main__":

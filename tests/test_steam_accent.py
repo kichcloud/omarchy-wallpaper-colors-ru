@@ -3,7 +3,6 @@
 import importlib.machinery
 import importlib.util
 import io
-import os
 import sys
 import tempfile
 import unittest
@@ -83,20 +82,6 @@ class Build(unittest.TestCase):
 
 
 class Failures(unittest.TestCase):
-    def test_palette_force_override(self):
-        """STEAM_ACCENT_FORCE должен подменять акцент, если это корректный hex."""
-        out = mock.Mock(stdout="accent\t#112233\nbackground\t#000000\n")
-        with mock.patch.object(sa.subprocess, "run", return_value=out), \
-             mock.patch.dict(os.environ, {"STEAM_ACCENT_FORCE": "#ff0000"}):
-            self.assertEqual(sa.palette()["accent"], "#ff0000")
-
-    def test_palette_force_garbage_ignored(self):
-        """Невалидный STEAM_ACCENT_FORCE не должен ломать палитру."""
-        out = mock.Mock(stdout="accent\t#112233\n")
-        with mock.patch.object(sa.subprocess, "run", return_value=out), \
-             mock.patch.dict(os.environ, {"STEAM_ACCENT_FORCE": "not-a-color"}):
-            self.assertEqual(sa.palette()["accent"], "#112233")
-
     def test_pages_unavailable(self):
         """Нет CDP — возвращаем пустой список, а не исключение."""
         with mock.patch.object(sa.urllib.request, "urlopen", side_effect=OSError("no cdp")):
@@ -112,7 +97,6 @@ class Failures(unittest.TestCase):
         flag = mock.MagicMock()
         flag.parent.mkdir.side_effect = OSError("denied")
         fake_sys = mock.MagicMock()
-        fake_sys.argv = ["steam-accent", "--once"]
         fake_sys.stderr = io.StringIO()
         with mock.patch.object(sa, "FLAG", flag), \
              mock.patch.object(sa, "refresh", return_value=("css", None)), \

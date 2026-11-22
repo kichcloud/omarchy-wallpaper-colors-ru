@@ -30,8 +30,6 @@ Panel {
   property real blurSize: 4
   readonly property real alphaPercent: Math.max(0, Math.min(100, (1 - root.shellAlpha) / 0.7 * 100))
   property string error: ""
-  property int cursor: 0
-  property bool cursorActive: false
 
   readonly property var rows: [{ index: -1, name: "Тема по умолчанию", color: "" }].concat(
     root.colors.map(function(c, i) { return { index: i, name: i ? "Цвет " + (i + 1) : "Обои", color: c } }))
@@ -83,7 +81,6 @@ Panel {
   }
 
   onOpenedChanged: if (opened) {
-    root.cursorActive = false
     styleStatusProc.running = true
     tuneProc.running = true
     refresh()
@@ -99,7 +96,7 @@ Panel {
         try {
           var r = JSON.parse(String(text || "").trim())
           root.colors = r.colors; root.theme = r.theme; root.mode = r.mode || "auto"
-          root.locked = r.locked; root.active = r.active; root.cursor = root.activeRow
+          root.locked = r.locked; root.active = r.active
         } catch (e) { root.error = "Не удалось прочитать цвета обоев. Установлен ли matugen?" }
       }
     }
@@ -154,21 +151,9 @@ Panel {
 
   KeyboardPanel {
     id: panel
-    anchorItem: button; owner: root; bar: root.bar; open: root.opened; focusTarget: keys
+    anchorItem: button; owner: root; bar: root.bar; open: root.opened
     contentWidth: panel.fittedContentWidth(Style.space(220))
     contentHeight: panel.fittedContentHeight(col.implicitHeight)
-
-    PanelKeyCatcher {
-      id: keys
-      anchors.fill: parent
-      onMoveRequested: function(dx, dy) {
-        if (!root.cursorActive) root.cursorActive = true
-        else root.cursor = (root.cursor + (dx || dy) + root.rows.length) % root.rows.length
-      }
-      onActivateRequested: if (root.cursorActive && root.colors.length) root.pick(root.rows[root.cursor].index)
-      onCloseRequested: root.close()
-      onTabRequested: function(d) { root.switchPanel(d) }
-    }
 
     Column {
       id: col
@@ -198,16 +183,14 @@ Panel {
           Rectangle {
             required property var modelData; required property int index
             readonly property bool current: index === root.activeRow
-            readonly property bool hot: (root.cursorActive && root.cursor === index) || mouse.containsMouse
             width: Style.space(28); height: width; radius: width / 2
             color: modelData.color || "transparent"
             border.width: current ? Math.max(1, Style.space(2)) : (modelData.color ? 0 : 1)
             border.color: root.fg
-            opacity: hot || current ? 1 : .85
+            opacity: current ? 1 : .85
             antialiasing: true
             MouseArea {
-              id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-              onEntered: { root.cursorActive = true; root.cursor = index }
+              anchors.fill: parent; cursorShape: Qt.PointingHandCursor
               onClicked: root.pick(modelData.index)
             }
           }
