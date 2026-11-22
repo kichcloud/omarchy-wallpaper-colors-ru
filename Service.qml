@@ -9,6 +9,7 @@ Item {
 
   property var shell: null
 
+  readonly property string dir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, ""))
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
   readonly property string cursorBin: decodeURIComponent(String(Qt.resolvedUrl("bin/cursor-recolor")).replace(/^file:\/\//, ""))
   property string lastBackground: ""
@@ -22,8 +23,17 @@ Item {
     syncProc.running = true
   }
 
-  // Курсор один раз при загрузке оболочки: после перезапуска Hyprland забывает его.
-  Component.onCompleted: cursorProc.running = true
+  // Первый запуск: тихо ставит тему и lock-макет, потом применяет палитру и курсор.
+  Component.onCompleted: installProc.running = true
+  Process {
+    id: installProc
+    running: false
+    command: ["bash", root.dir + "bin/install-themes"]
+    onExited: function(code) {
+      cursorProc.running = true
+      root.sync()
+    }
+  }
   Process {
     id: cursorProc
     running: false
