@@ -71,12 +71,14 @@ Panel {
     if (alphaProc.running) return
     var pct = v === undefined ? alphaSlider.liveValue : v
     root.pendingAlpha = Number((1 - pct / 100 * 0.7).toFixed(2))
+    root.shellAlpha = root.pendingAlpha   // оптимистично — ползунок не дёргается назад
     alphaProc.command = [root.styleBin, "alpha", String(root.pendingAlpha)]; alphaProc.running = true
   }
   function setBlur(v) {
     if (blurProc.running) return
     var px = v === undefined ? blurSlider.liveValue : v
-    blurProc.command = [root.styleBin, "blur", String(Math.round(px))]
+    root.blurSize = Math.round(px)
+    blurProc.command = [root.styleBin, "blur", String(root.blurSize)]
     blurProc.running = true
   }
 
