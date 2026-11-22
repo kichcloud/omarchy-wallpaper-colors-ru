@@ -11,7 +11,6 @@ cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
    "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"
 mkdir -p "$HOME_DIR/.local/share/omarchy-glass"
 cp "$ROOT/assets/glass/style.css" "$HOME_DIR/.local/share/omarchy-glass/style.css"
-cp "$ROOT/assets/glass/glass-layer.css" "$HOME_DIR/.local/share/omarchy-glass/glass-layer.css"
 
 mkdir -p "$HOME_DIR/.config/omarchy/hooks/theme-set.d"
 cp "$ROOT/assets/hooks/omarchy-glass" "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
@@ -52,6 +51,43 @@ fi
 
 # Бар: сплошная поверхность, как у остальных окон (не glassy).
 omarchy-bar background opaque >/dev/null 2>&1 || true
+
+THEME=wallpaper-glass
+DEST="$HOME/.config/omarchy/themes/$THEME"
+MARK="$DEST/.installed-by-wallpaper-colors"
+LOCK_DIR="$HOME/.config/omarchy/lock-designs"
+LOCK_ID=my-wallpaperglass
+
+# Рабочий стол: тема рядом со стоковыми, в штатной карусели.
+if [[ ! -f $MARK ]]; then
+  mkdir -p "$DEST"
+  cp -a "$ROOT/themes/$THEME/." "$DEST/"
+  printf 'installed by kich.wallpaper-colors-ru\n' >"$MARK"
+  # Не трогаем текущие обои пользователя, только включаем тему.
+  OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME" >/dev/null 2>&1 || true
+  "$ROOT/bin/wallpaper-colors" sync >/dev/null 2>&1 || true
+fi
+
+# Превью обновляем всегда: без preview-unlock.png темы нет в карусели
+# omarchy-plymouth-switcher, а unlock.png использует сам Plymouth.
+cp "$ROOT/themes/$THEME/preview-unlock.png" "$DEST/preview-unlock.png"
+cp "$ROOT/themes/$THEME/unlock.png" "$DEST/unlock.png"
+
+# Lock: стандартный макет с цветами и обоями от плагина.
+if [[ ! -f $LOCK_DIR/WallpaperGlass.qml ]]; then
+  mkdir -p "$LOCK_DIR"
+  cp "$ROOT/lock/WallpaperGlass.qml" "$LOCK_DIR/WallpaperGlass.qml"
+  mkdir -p "$LOCK_DIR/thirdparty-previews"
+  cp "$ROOT/lock/preview/my-wallpaperglass.jpg" \
+     "$LOCK_DIR/thirdparty-previews/my-wallpaperglass.jpg"
+  settings="$LOCK_DIR/settings.json"
+  if [[ -f $settings ]] && command -v jq >/dev/null; then
+    tmp=$(mktemp)
+    jq --arg id "$LOCK_ID" '.design = $id' "$settings" >"$tmp" && mv "$tmp" "$settings"
+  else
+    printf '{\n  "design": "%s"\n}\n' "$LOCK_ID" >"$settings"
+  fi
+fi
 
 # Пересобрать палитру/тему под новые шаблоны.
 THEME_NAME=$(<"$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null) || THEME_NAME=wallpaper-glass

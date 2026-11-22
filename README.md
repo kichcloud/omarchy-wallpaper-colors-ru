@@ -44,18 +44,18 @@ $BIN shape modern|original
 `bin/install-config` (вызывается при старте оболочки и при каждом переключении стиля) копирует из `assets/` и включает:
 
 - `themed/omarchy-glass.palette.css.tpl` — палитра Vesktop без подмеса к foreground;
-- `local/share/omarchy-glass/{style.css,glass-layer.css}` — CSS стекла с твёрдыми поверхностями;
+- `local/share/omarchy-glass/style.css` — CSS стекла с твёрдыми поверхностями;
 - `hooks/theme-set.d/omarchy-glass` — пересборка темы Vesktop при смене темы;
 - `hypr/uniform-glass.lua` — единая альфа 0.85 и блюр для всех окон, подключённая в `hyprland.lua`;
 - альфу 0.85 для панелей в `~/.config/omarchy/shell.toml`;
 - бар в режиме `opaque` (сплошная поверхность, как у остальных окон);
 - Vesktop с темой `omarchy-glass.theme.css` и `transparent: false`.
 
-`bin/install-themes` дополнительно ставит тему `wallpaper-glass` и lock-макет. Всё идемпотентно: на новой машине включение прозрачного стиля даёт тот же результат.
+`bin/install-config` дополнительно ставит тему `wallpaper-glass` и lock-макет. Всё идемпотентно: на новой машине включение прозрачного стиля даёт тот же результат.
 
 ## Тема рабочего стола и lock
 
-При первом запуске (после установки плагина) `bin/install-themes` молча:
+При первом запуске (после установки плагина) `bin/install-config` молча:
 
 - копирует тему **`wallpaper-glass`** в `~/.config/omarchy/themes/` — она видна в штатной карусели тем как «Wallpaper Glass» — и переключается на неё, не меняя текущие обои;
 - кладёт `WallpaperGlass.qml` в `~/.config/omarchy/lock-designs/` и выбирает его (`my-wallpaper-glass`) в настройках lock-дизайнов.

@@ -28,7 +28,7 @@ Item {
   Process {
     id: installProc
     running: false
-    command: ["bash", root.dir + "bin/install-themes"]
+    command: ["bash", root.dir + "bin/install-config"]
     onExited: function(code) {
       cursorProc.running = true
       root.sync()
