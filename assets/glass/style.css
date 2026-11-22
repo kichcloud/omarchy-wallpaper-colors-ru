@@ -513,14 +513,22 @@ body,
   pointer-events: none;
 }
 
+/* Базовый холст Electron тоже должен быть прозрачным: иначе полупрозрачные
+   поверхности накладываются на сплошной чёрный фон и обои не видны. */
+html,
+body,
+#app-mount {
+  background: transparent !important;
+}
+
 /* Поверхности самой темы: полупрозрачные, чтобы обои читались через клиент,
    а текст оставался непрозрачным. Альфа задаётся здесь, в теме Omarchy Glass,
    а не через композиторское затуманивание всего окна. */
 :root {
   --oc-alpha: 0.42;
-  --oc-s0: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
-  --oc-s1: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
-  --oc-s2: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
-  --oc-s3: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
-  --oc-s4: rgba(var(--oc-bg-rgb), var(--oc-alpha)) !important;
+  --oc-s0: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
+  --oc-s1: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
+  --oc-s2: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
+  --oc-s3: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
+  --oc-s4: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
 }

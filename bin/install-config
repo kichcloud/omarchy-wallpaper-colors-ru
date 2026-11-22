@@ -48,9 +48,13 @@ PY
 # Альфа поверхностей темы Omarchy Glass. Сама тема задаёт --oc-alpha с
 # fallback-значением, а здесь ползунок переопределяет его для Vencord.
 vesktop_alpha() {
-  local data=$HOME_DIR/.local/share/omarchy-glass
+  local data=$HOME_DIR/.local/share/omarchy-glass dc
   mkdir -p "$data"
-  printf ':root { --oc-alpha: %s; }\n' "$alpha" >"$data/alpha.css"
+  # Discord рисует больше собственных слоёв, чем терминал, поэтому при том же
+  # ползунке его поверхности должны быть заметно прозрачнее. В штатном стиле
+  # (alpha = 1.0) оставляем сплошной цвет.
+  dc=$(awk -v a="$alpha" 'BEGIN { if (a >= 0.99) print a; else { v = a * 0.5; if (v < 0.05) v = 0.05; printf "%.2f", v } }')
+  printf ':root { --oc-alpha: %s; --dc-alpha: %s; }\n' "$alpha" "$dc" >"$data/alpha.css"
   bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" \
     "$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || echo wallpaper-glass)" >/dev/null 2>&1 || true
 }
