@@ -2,10 +2,13 @@
 """Юнит-тесты чистых частей steam-accent (без Steam и CDP)."""
 import importlib.machinery
 import importlib.util
+import io
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE = Path(__file__).resolve().parents[1] / "assets/steam/steam-accent.py"
 loader = importlib.machinery.SourceFileLoader("steam_accent", str(MODULE))
@@ -78,6 +81,59 @@ class Build(unittest.TestCase):
         self.assertIn("--color-accent-1:", css)
         self.assertIn("--color-accent-7:", css)
         self.assertIn(".x{color:#112233}", css)
+
+
+class Failures(unittest.TestCase):
+    def test_palette_force_override(self):
+        """STEAM_ACCENT_FORCE должен подменять акцент, если это корректный hex."""
+        out = mock.Mock(stdout="accent\t#112233\nbackground\t#000000\n")
+        with mock.patch.object(sa.subprocess, "run", return_value=out), \
+             mock.patch.dict(os.environ, {"STEAM_ACCENT_FORCE": "#ff0000"}):
+            self.assertEqual(sa.palette()["accent"], "#ff0000")
+
+    def test_palette_force_garbage_ignored(self):
+        """Невалидный STEAM_ACCENT_FORCE не должен ломать палитру."""
+        out = mock.Mock(stdout="accent\t#112233\n")
+        with mock.patch.object(sa.subprocess, "run", return_value=out), \
+             mock.patch.dict(os.environ, {"STEAM_ACCENT_FORCE": "not-a-color"}):
+            self.assertEqual(sa.palette()["accent"], "#112233")
+
+    def test_pages_unavailable(self):
+        """Нет CDP — возвращаем пустой список, а не исключение."""
+        with mock.patch.object(sa.urllib.request, "urlopen", side_effect=OSError("no cdp")):
+            self.assertEqual(sa.pages(), [])
+
+    def test_inject_without_targets(self):
+        """Нет вкладок — inject возвращает 0 и не падает."""
+        with mock.patch.object(sa, "pages", return_value=[]):
+            self.assertEqual(sa.inject("css", "rev"), 0)
+
+    def test_refresh_keeps_old_css_on_generation_error(self):
+        """Сбой генерации не должен стирать уже применённый CSS."""
+        with mock.patch.object(sa, "signature", return_value=(1, 0, 0, 0)), \
+             mock.patch.object(sa, "stylesheet", side_effect=RuntimeError("boom")), \
+             mock.patch.object(sa, "inject", return_value=0) as inj, \
+             mock.patch.object(sys, "stderr", new_callable=io.StringIO) as err:
+            css, sig = sa.refresh("old-css", None)
+        self.assertEqual(css, "old-css")
+        self.assertIsNone(sig)
+        self.assertIn("generate failed", err.getvalue())
+        inj.assert_called_once_with("old-css", mock.ANY)
+
+
+class UnusualInputs(unittest.TestCase):
+    def test_retint_percent_alpha(self):
+        out = sa.retint("a{color:rgba(1, 2, 3, 50%)}", IdentityMapper())
+        self.assertIn("rgba(1, 2, 3, 0.5)", out)
+
+    def test_retint_empty_css(self):
+        self.assertEqual(sa.retint("", IdentityMapper()), "")
+
+    def test_build_empty_dir(self):
+        with tempfile.TemporaryDirectory() as td:
+            css = sa.build_stylesheet(IdentityMapper(), Path(td))
+        self.assertIn("--omarchy-accent:#b2c5ff", css)
+        self.assertEqual(css.count("{"), 1)  # только :root
 
 
 if __name__ == "__main__":
