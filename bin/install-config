@@ -19,6 +19,36 @@ alpha=${1:-$default_alpha}
 # Аргумент от ползунка тоже проверяем: битое значение не должно попасть в shell.toml.
 [[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || alpha=$default_alpha
 
+# Обновление только альфы оболочки. Ползунок прозрачности вызывает именно этот
+# путь: shell.toml уже читается оболочкой с watchChanges, поэтому ни смены
+# темы, ни ретината приложений, ни перезапуска оболочки не требуется.
+shell_alpha() {
+python3 - "$HOME_DIR" "$alpha" <<'PY'
+import re, sys, pathlib
+home = pathlib.Path(sys.argv[1]); alpha = sys.argv[2]
+p = home / ".config/omarchy/shell.toml"
+text = p.read_text() if p.exists() else ""
+for s in ("bar", "popups", "tooltip", "notifications", "launcher", "menu", "polkit", "lock"):
+    pat = re.compile(r"(?ms)^\[" + s + r"\][ \t]*\n(.*?)(?=^\[|\Z)")
+    body = f"background-alpha = {alpha}\n"
+    if pat.search(text):
+        text = pat.sub(lambda m: f"[{s}]\n" + body +
+                       re.sub(r"^background-alpha[ \t]*=.*\n?", "", m.group(1), flags=re.M),
+                       text, count=1)
+    else:
+        text += f"\n[{s}]\n" + body
+p.parent.mkdir(parents=True, exist_ok=True)
+p.write_text(text)
+PY
+}
+
+if [[ ${1:-} == --light ]]; then
+  alpha=${2:-$default_alpha}
+  [[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || alpha=$default_alpha
+  shell_alpha
+  exit 0
+fi
+
 # Миграция старых каталогов состояния в один общий.
 STDIR="$HOME_DIR/.local/state/omarchy/wallpaper-colors"
 OLD="$HOME_DIR/.local/state/omarchy/uniform-glass"
@@ -56,24 +86,7 @@ grep -q 'require("hypr.uniform-glass")' "$HL" 2>/dev/null || \
   printf '\nrequire("hypr.uniform-glass") -- uniform transparency + blur for every window and layer\n' >>"$HL"
 
 # Альфа панелей оболочки: точечно обновляем известные секции, остальное сохраняем.
-python3 - "$HOME_DIR" "$alpha" <<'PY'
-import re, sys, pathlib
-home = pathlib.Path(sys.argv[1])
-alpha = sys.argv[2]
-p = home / ".config/omarchy/shell.toml"
-text = p.read_text() if p.exists() else ""
-for s in ("bar", "popups", "tooltip", "notifications", "launcher", "menu", "polkit", "lock"):
-    pat = re.compile(r"(?ms)^\[" + s + r"\][ \t]*\n(.*?)(?=^\[|\Z)")
-    body = f"background-alpha = {alpha}\n"
-    if pat.search(text):
-        text = pat.sub(lambda m: f"[{s}]\n" + body +
-                       re.sub(r"^background-alpha[ \t]*=.*\n?", "", m.group(1), flags=re.M),
-                       text, count=1)
-    else:
-        text += f"\n[{s}]\n" + body
-p.parent.mkdir(parents=True, exist_ok=True)
-p.write_text(text)
-PY
+shell_alpha
 
 # Vesktop: наша тема и непрозрачное содержимое (альфу даёт композитор, как у folio).
 VS="$HOME_DIR/.config/vesktop/settings/settings.json"

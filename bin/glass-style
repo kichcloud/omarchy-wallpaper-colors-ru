@@ -42,7 +42,10 @@ if [[ $mode == alpha ]]; then
     [[ -f $f ]] || continue
     sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$v/" "$f"
   done
-  "$ROOT/bin/install-config" "$v" >/dev/null 2>&1 || true
+  # Только альфа: оболочка сама следит за shell.toml, полная смена темы не нужна.
+  "$ROOT/bin/install-config" --light "$v" >/dev/null 2>&1 || true
+  # Один reload, чтобы Lua-конфиг перечитал glass-alpha.
+  hyprctl reload >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -84,5 +87,5 @@ for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \
   sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$alpha/" "$f"
 done
 
+# Перезапуск оболочки не нужен: ~/.config/omarchy/shell.toml читается ей вживую.
 hyprctl reload >/dev/null 2>&1 || true
-omarchy restart shell >/dev/null 2>&1 || true
