@@ -1,9 +1,9 @@
 -- Единая прозрачность и блюр для ВСЕГО: окон, бара, доков, меню,
 -- уведомлений, tooltip'ов, OSD и всплывающих окон.
 -- Стиль переключается кнопками в панели «Цвета обоев»:
---   ~/.local/state/omarchy/uniform-glass/style → glass | opaque
+--   ~/.local/state/omarchy/wallpaper-colors/glass-style → glass | opaque
 
-local styleFile = (os.getenv("HOME") or "") .. "/.local/state/omarchy/uniform-glass/style"
+local styleFile = (os.getenv("HOME") or "") .. "/.local/state/omarchy/wallpaper-colors/glass-style"
 local style = "glass"
 local sf = io.open(styleFile, "r")
 if sf then
@@ -11,7 +11,7 @@ if sf then
   if v == "glass" or v == "opaque" then style = v end
   sf:close()
 end
-local stateDir = (os.getenv("HOME") or "") .. "/.local/state/omarchy/uniform-glass"
+local stateDir = (os.getenv("HOME") or "") .. "/.local/state/omarchy/wallpaper-colors"
 
 -- Ползунки плагина пишут сюда переопределения; без них — стиль по умолчанию.
 local function numberFrom(name, fallback, min, max)
@@ -23,9 +23,9 @@ local function numberFrom(name, fallback, min, max)
   return math.max(min, math.min(max, n))
 end
 
-local alphaOverride = numberFrom("alpha", nil, 0.30, 1.0)
+local alphaOverride = numberFrom("glass-alpha", nil, 0.30, 1.0)
 local A = alphaOverride or ((style == "opaque") and 1.0 or 0.85)
-local blurSize = numberFrom("blur", 4, 0, 30)
+local blurSize = numberFrom("glass-blur", 4, 0, 30)
 
 hl.config({
   decoration = {

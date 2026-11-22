@@ -9,13 +9,34 @@ HOME_DIR=${HOME:-/home/kich}
 
 # По умолчанию берём альфу из текущего стиля: иначе рестарт оболочки
 # (Service.qml вызывает install-config без аргументов) сбросил бы 1.0 → 0.85.
-style=$(cat "$HOME_DIR/.local/state/omarchy/uniform-glass/style" 2>/dev/null || true)
-default_alpha=$(cat "$HOME_DIR/.local/state/omarchy/uniform-glass/alpha" 2>/dev/null || true)
+style=$(cat "$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-style" 2>/dev/null || true)
+default_alpha=$(cat "$HOME_DIR/.local/state/omarchy/wallpaper-colors/glass-alpha" 2>/dev/null || true)
 if [[ -z $default_alpha ]]; then
   default_alpha=0.85
   [[ $style == opaque ]] && default_alpha=1.0
 fi
 alpha=${1:-$default_alpha}
+
+# Миграция старых каталогов состояния в один общий.
+STDIR="$HOME_DIR/.local/state/omarchy/wallpaper-colors"
+OLD="$HOME_DIR/.local/state/omarchy/uniform-glass"
+if [[ -d $OLD ]]; then
+  for k in style alpha blur; do
+    [[ -f $OLD/$k ]] && mv "$OLD/$k" "$STDIR/glass-$k"
+  done
+  rmdir "$OLD" 2>/dev/null || true
+fi
+OLD="$STDIR/backups"
+if [[ -d $OLD ]]; then
+  for f in "$OLD"/*; do
+    [[ -f $f ]] && mv "$f" "$STDIR/backup.$(basename "$f")"
+  done
+  rmdir "$OLD" 2>/dev/null || true
+fi
+OLD="$STDIR/cursor"
+if [[ -f $OLD/config.json ]]; then mv "$OLD/config.json" "$STDIR/cursor.json"; fi
+if [[ -f $OLD/.lock ]]; then mv "$OLD/.lock" "$STDIR/cursor.lock"; fi
+rmdir "$OLD" 2>/dev/null || true
 
 cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
    "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"

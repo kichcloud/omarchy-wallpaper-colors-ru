@@ -36,8 +36,7 @@ $BIN shape modern|original
 
 ## Состояние
 
-- `~/.local/state/omarchy/wallpaper-colors/` — акценты, режим, бэкапы;
-- `~/.local/state/omarchy/wallpaper-colors/cursor/` — конфиг курсора и блокировка;
+- `~/.local/state/omarchy/wallpaper-colors/` — всё состояние в одном каталоге: акценты, режим, бэкапы, конфиг курсора и параметры стиля (`glass-*`). При обновлении старые каталоги `cursor/`, `backups/` и `uniform-glass/` переносятся сюда автоматически;
 - `~/.local/share/icons/Omarchy-Accent/` — установленная тема курсора (hyprcursor + Xcursor).
 
 ## Что ставит плагин

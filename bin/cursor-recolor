@@ -5,8 +5,8 @@ from pathlib import Path
 
 P = Path(__file__).resolve().parent.parent   # корень общего плагина
 A = P / "cursor"                            # ассеты и движок курсора
-STATE = Path.home() / ".local/state/omarchy/wallpaper-colors/cursor"
-CONFIG = STATE / "config.json"
+STATE = Path.home() / ".local/state/omarchy/wallpaper-colors"
+CONFIG = STATE / "cursor.json"
 COLORS = Path.home() / ".local/state/omarchy/current/theme/colors.toml"
 NAME, STAMP, FORMAT = "Omarchy-Accent", ".cursor-accent-stamp", 3
 SIZE = os.environ.get("HYPRCURSOR_SIZE", "24")
@@ -211,7 +211,7 @@ def main():
     stamp = stamp_for(target, render, fmt, sz)
 
     STATE.mkdir(parents=True, exist_ok=True)
-    with (STATE / ".lock").open("w") as lock:
+    with (STATE / "cursor.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         current = (INSTALL / STAMP).is_file() and (INSTALL / STAMP).read_text() == stamp
         if current and (INSTALL / "manifest.hl").is_file() and (INSTALL / "cursors/left_ptr").exists():

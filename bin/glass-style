@@ -4,14 +4,14 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-ST=~/.local/state/omarchy/uniform-glass
+ST=~/.local/state/omarchy/wallpaper-colors
 mkdir -p "$ST"
 mode=${1:-status}
 
-style=$(cat "$ST/style" 2>/dev/null || true)
+style=$(cat "$ST/glass-style" 2>/dev/null || true)
 [[ $style == opaque || $style == glass ]] || style=glass
-alpha_file="$ST/alpha"
-blur_file="$ST/blur"
+alpha_file="$ST/glass-alpha"
+blur_file="$ST/glass-blur"
 
 if [[ $mode == status ]]; then
   echo "$style"
@@ -53,7 +53,7 @@ bg=glassy; alpha=0.85
 if [[ $mode == opaque ]]; then
   bg=opaque; alpha=1.0
 fi
-printf '%s\n' "$mode" >"$ST/style"
+printf '%s\n' "$mode" >"$ST/glass-style"
 rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
 
 # Гарантируем, что все конфиги плагина на месте (в т.ч. на новой машине).

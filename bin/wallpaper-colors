@@ -9,7 +9,6 @@ themes=~/.config/omarchy/themes
 picks=$state/picks.json
 off=$state/off
 modef=$state/mode
-backups=$state/backups
 marker="# Written by the Wallpaper Colors plugin. Choose Theme default in its bar popup to remove it."
 tmp=
 mkdir -p "$state"; touch "$off"
@@ -62,7 +61,7 @@ sync() {
   need_matugen
   local target=$themes/$theme/colors.toml mode; mode=$(mode_for "$image")
   mkdir -p "$themes/$theme"
-  [[ -f $target ]] && ! ours "$target" && { mkdir -p "$backups"; cp "$target" "$backups/$theme.colors.toml"; }
+  [[ -f $target ]] && ! ours "$target" && cp "$target" "$state/backup.$theme.colors.toml"
   tmp=$(mktemp "$themes/$theme/.colors.toml.XXXXXX")
   {
     echo "$marker"
@@ -78,8 +77,8 @@ reset() {
   from_git && return
   local target=$themes/$theme/colors.toml
   ours "$target" || return
-  if [[ -f $backups/$theme.colors.toml ]]; then
-    mv "$backups/$theme.colors.toml" "$target"
+  if [[ -f $state/backup.$theme.colors.toml ]]; then
+    mv "$state/backup.$theme.colors.toml" "$target"
   else
     rm "$target"; rmdir --ignore-fail-on-non-empty "$themes/$theme"
   fi
