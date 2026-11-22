@@ -470,9 +470,9 @@ body,
 
 /* Квадратные углы для всего, кроме аватарок, каналов/папок и индикаторов
    статуса — им Discord задаёт форму сам, в т.ч. масками. */
-#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *),
-#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *)::before,
-#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *)::after
+#app-mount *:not([class*="avatar"] *):not([class*="icon"]),
+#app-mount *:not([class*="avatar"] *):not([class*="icon"])::before,
+#app-mount *:not([class*="avatar"] *):not([class*="icon"])::after
 {
   border-radius: 0 !important;
   clip-path: none !important;
@@ -483,6 +483,13 @@ body,
   -webkit-mask-image: none !important;
   mask-border: none !important;
   -webkit-mask-box-image: none !important;
+}
+
+/* Каналы остаются квадратными — исключение аватарок не должно их задевать. */
+#app-mount [class*="link_"],
+#app-mount [class*="linkTop_"],
+#app-mount [class*="channelInfo_"] {
+  border-radius: 0 !important;
 }
 
 /* Hairline separators and the accent rule along the header, matching
