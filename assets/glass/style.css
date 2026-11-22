@@ -470,9 +470,10 @@ body,
 
 /* Квадратные углы для всего, кроме аватарок, каналов/папок и индикаторов
    статуса — им Discord задаёт форму сам, в т.ч. масками. */
-#app-mount *:not([class*="avatar_"]):not([class*="avatar_"] *):not([class*="statusDot_"]):not([class*="statusDot_"] *):not([class*="status_"][class*="dot_"]):not([class*="typing_"] [class*="dot_"]):not([class*="folderIconWrapper_"]):not([class*="folderIconWrapper_"] *):not([class*="folderGroupBackground_"]):not([class*="channel_"]):not([class*="channel_"] *),
-#app-mount *:not([class*="avatar_"]):not([class*="avatar_"] *):not([class*="statusDot_"]):not([class*="statusDot_"] *):not([class*="status_"][class*="dot_"]):not([class*="typing_"] [class*="dot_"]):not([class*="folderIconWrapper_"]):not([class*="folderIconWrapper_"] *):not([class*="folderGroupBackground_"]):not([class*="channel_"]):not([class*="channel_"] *)::before,
-#app-mount *:not([class*="avatar_"]):not([class*="avatar_"] *):not([class*="statusDot_"]):not([class*="statusDot_"] *):not([class*="status_"][class*="dot_"]):not([class*="typing_"] [class*="dot_"]):not([class*="folderIconWrapper_"]):not([class*="folderIconWrapper_"] *):not([class*="folderGroupBackground_"]):not([class*="channel_"]):not([class*="channel_"] *)::after {
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *),
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *)::before,
+#app-mount *:not([class*="avatar"]):not([class*="avatar"] *):not([class*="status"]):not([class*="status"] *):not([class*="folder"]):not([class*="folder"] *):not([class*="channel"]):not([class*="channel"] *):not([class*="guild"]):not([class*="guild"] *):not([class*="icon"]):not([class*="icon"] *)::after
+{
   border-radius: 0 !important;
   clip-path: none !important;
   -webkit-clip-path: none !important;
