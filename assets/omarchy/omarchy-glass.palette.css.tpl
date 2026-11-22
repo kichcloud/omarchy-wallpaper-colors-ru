@@ -9,7 +9,7 @@
    * s0..s2 come from the theme directly; s3/s4 are mixed toward the
    * foreground so they contrast in light and dark themes alike
    * (lighter_background is not reliably lighter than background). */
-  --omacord-s0: {{ darker_background }};
+  --omacord-s0: {{ background }};
   --omacord-s1: {{ dark_background }};
   --omacord-s2: {{ background }};
   --omacord-s3: {{ mix background foreground 6% }};
@@ -17,7 +17,7 @@
 
   /* Translucent surfaces for the glass look, so the wallpaper reads through
      the client the same way it does through the terminal. */
-  --omacord-s0-a: rgba({{ darker_background_rgb }}, 0.60);
+  --omacord-s0-a: rgba({{ background_rgb }}, 0.60);
   --omacord-s1-a: rgba({{ dark_background_rgb }}, 0.68);
   --omacord-s2-a: rgba({{ background_rgb }}, 0.78);
   --omacord-s3-a: rgba({{ lighter_background_rgb }}, 0.84);

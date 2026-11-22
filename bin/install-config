@@ -97,7 +97,8 @@ if [[ ! -f $LOCK_DIR/WallpaperGlass.qml ]]; then
 fi
 
 # Пересобрать палитру/тему под новые шаблоны.
-THEME_NAME=$(<"$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null) || THEME_NAME=wallpaper-glass
+THEME_NAME=$(cat "$HOME_DIR/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
+[[ -n $THEME_NAME ]] || THEME_NAME=wallpaper-glass
 if [[ -f "$ROOT/bin/wallpaper-colors" ]]; then
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME_NAME" >/dev/null 2>&1 || true
 fi
