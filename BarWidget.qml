@@ -67,14 +67,16 @@ Panel {
     root.pendingStyle = s; root.applying = true
     styleProc.command = [root.styleBin, s]; styleProc.running = true
   }
-  function setAlpha() {
+  function setAlpha(v) {
     if (alphaProc.running) return
-    root.pendingAlpha = Number((1 - alphaSlider.liveValue / 100 * 0.7).toFixed(2))
+    var pct = v === undefined ? alphaSlider.liveValue : v
+    root.pendingAlpha = Number((1 - pct / 100 * 0.7).toFixed(2))
     alphaProc.command = [root.styleBin, "alpha", String(root.pendingAlpha)]; alphaProc.running = true
   }
-  function setBlur() {
+  function setBlur(v) {
     if (blurProc.running) return
-    blurProc.command = [root.styleBin, "blur", String(Math.round(blurSlider.liveValue))]
+    var px = v === undefined ? blurSlider.liveValue : v
+    blurProc.command = [root.styleBin, "blur", String(Math.round(px))]
     blurProc.running = true
   }
 
@@ -274,7 +276,7 @@ Panel {
           value: root.alphaPercent
           trackColor: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14)
           fillColor: root.fg; knobColor: root.fg
-          onReleased: function(v) { root.setAlpha() }
+          onReleased: function(v) { root.setAlpha(v) }
         }
         T {
           width: Style.space(38); horizontalAlignment: Text.AlignRight
@@ -298,7 +300,7 @@ Panel {
           value: root.blurSize
           trackColor: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, .14)
           fillColor: root.fg; knobColor: root.fg
-          onReleased: function(v) { root.setBlur() }
+          onReleased: function(v) { root.setBlur(v) }
         }
         T {
           width: Style.space(38); horizontalAlignment: Text.AlignRight

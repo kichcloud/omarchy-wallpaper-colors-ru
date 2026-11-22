@@ -36,7 +36,8 @@ if [[ $mode == alpha ]]; then
   "$ROOT/bin/install-config" "$v" >/dev/null 2>&1 || true
   # Терминалы непрозрачны на уровне композитора — их альфа задаётся в foot.ini.
   theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
-  for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini; do
+  for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \
+           ~/.local/state/omarchy/current/theme/foot.ini; do
     [[ -f $f ]] || continue
     sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$v/" "$f"
   done
@@ -48,6 +49,9 @@ if [[ $mode == blur ]]; then
   v=${2:-}
   [[ $v =~ ^[0-9]+$ ]] && (( v <= 30 )) || { echo "usage: glass-style blur 0..30" >&2; exit 2; }
   printf '%s\n' "$v" >"$blur_file"
+  fb=no; (( v > 0 )) && fb=yes
+  sed -i -E "s/^([[:space:]]*blur[[:space:]]*=[[:space:]]*).*/\1$fb/" \
+    ~/.local/state/omarchy/current/theme/foot.ini 2>/dev/null || true
   hyprctl reload >/dev/null 2>&1 || true
   exit 0
 fi
@@ -72,7 +76,8 @@ src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
 omarchy-theme-set-glass >/dev/null 2>&1 || true
 
 theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
-for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini; do
+for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini \
+           ~/.local/state/omarchy/current/theme/foot.ini; do
   [[ -f $f ]] || continue
   sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$alpha/" "$f"
 done
