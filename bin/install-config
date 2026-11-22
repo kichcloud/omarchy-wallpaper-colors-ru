@@ -56,6 +56,10 @@ if [[ -f $VS ]] && command -v jq >/dev/null; then
   jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$VS" >"$tmp" && mv "$tmp" "$VS"
 fi
 
+# OSD встроен в этот плагин — стоковый и старый клон больше не нужны.
+omarchy plugin disable kich.osd >/dev/null 2>&1 || true
+omarchy plugin disable omarchy.osd >/dev/null 2>&1 || true
+
 # Бар: сплошная поверхность, как у остальных окон (не glassy).
 omarchy-bar background opaque >/dev/null 2>&1 || true
 

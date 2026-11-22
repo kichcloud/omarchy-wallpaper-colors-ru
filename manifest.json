@@ -3,16 +3,19 @@
   "id": "kich.wallpaper-colors-ru",
   "name": "Wallpaper Colors RU",
   "version": "3.0.0",
+  "keepLoaded": true,
   "author": "Aditya Miskin, Jean Alvarado, kichcloud (merge)",
   "license": "MIT / GPL-3.0-or-later",
   "description": "Перекрашивает тему Omarchy и курсор по цветам обоев. Русский интерфейс, ручной выбор режима, встроенный перекрашиватель курсора.",
   "kinds": [
     "service",
-    "bar-widget"
+    "bar-widget",
+    "panel"
   ],
   "entryPoints": {
     "service": "Service.qml",
-    "barWidget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml",
+    "panel": "osd/Osd.qml"
   },
   "barWidget": {
     "displayName": "Цвета обоев",

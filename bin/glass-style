@@ -48,10 +48,10 @@ fi
 
 [[ $mode == glass || $mode == opaque ]] || { echo "usage: glass-style [glass|opaque|status|values|alpha <v>|blur <n>]" >&2; exit 2; }
 
-# glass → window-glassy/kich.osd/0.85, opaque → window-opaque/omarchy.osd/1.0
-bg=glassy; osd_on=kich.osd; osd_off=omarchy.osd; alpha=0.85
+# glass → window-glassy/0.85, opaque → window-opaque/1.0
+bg=glassy; alpha=0.85
 if [[ $mode == opaque ]]; then
-  bg=opaque; osd_on=omarchy.osd; osd_off=kich.osd; alpha=1.0
+  bg=opaque; alpha=1.0
 fi
 printf '%s\n' "$mode" >"$ST/style"
 rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
@@ -64,8 +64,6 @@ rm -f "$T/window-glassy.lua" "$T/window-opaque.lua"
 src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
 [[ -f $src ]] && cp "$src" "$T/$(basename "$src")"
 omarchy-theme-set-glass >/dev/null 2>&1 || true
-omarchy plugin enable "$osd_on" >/dev/null 2>&1 || true
-omarchy plugin disable "$osd_off" >/dev/null 2>&1 || true
 
 {
   echo "# Управляется панелью «Цвета обоев» → Стиль."
