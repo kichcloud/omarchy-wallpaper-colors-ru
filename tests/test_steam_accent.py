@@ -37,9 +37,8 @@ class ColorMath(unittest.TestCase):
                 self.assertLessEqual(abs(a - b), 3, (original, got))
 
     def test_rgb_helper(self):
-        # Важно зафиксировать текущее поведение: 3-значный hex раскрывается как
-        # "abcabc", а не "aabbcc". Это отдельный баг, не трогаем в рефакторинге.
-        self.assertEqual(sa.rgb("#abc"), (171, 202, 188))
+        # 3-значный hex раскрывается по стандарту: #abc == #aabbcc.
+        self.assertEqual(sa.rgb("#abc"), (170, 187, 204))
         self.assertEqual(sa.rgb("#11223344"), (17, 34, 51))
 
 
@@ -108,6 +107,19 @@ class Failures(unittest.TestCase):
         with mock.patch.object(sa, "pages", return_value=[]):
             self.assertEqual(sa.inject("css", "rev"), 0)
 
+    def test_flag_failure_does_not_crash(self):
+        """Недоступный ~/.steam не должен ронять --once."""
+        flag = mock.MagicMock()
+        flag.parent.mkdir.side_effect = OSError("denied")
+        fake_sys = mock.MagicMock()
+        fake_sys.argv = ["steam-accent", "--once"]
+        fake_sys.stderr = io.StringIO()
+        with mock.patch.object(sa, "FLAG", flag), \
+             mock.patch.object(sa, "refresh", return_value=("css", None)), \
+             mock.patch.object(sa, "sys", fake_sys):
+            self.assertEqual(sa.main(), 0)
+        self.assertIn("cannot create CDP flag", fake_sys.stderr.getvalue())
+
     def test_refresh_keeps_old_css_on_generation_error(self):
         """Сбой генерации не должен стирать уже применённый CSS."""
         with mock.patch.object(sa, "signature", return_value=(1, 0, 0, 0)), \
@@ -128,6 +140,13 @@ class UnusualInputs(unittest.TestCase):
 
     def test_retint_empty_css(self):
         self.assertEqual(sa.retint("", IdentityMapper()), "")
+
+    def test_retint_no_placeholder_collision(self):
+        """Литеральные NUL-последовательности в CSS не должны ломать retint."""
+        src = 'a{content:"\\x000\\x00";color:#ffffff}'
+        out = sa.retint(src, IdentityMapper())
+        self.assertIn('content:"\\x000\\x00"', out)
+        self.assertIn('color:#ffffff', out)
 
     def test_build_empty_dir(self):
         with tempfile.TemporaryDirectory() as td:

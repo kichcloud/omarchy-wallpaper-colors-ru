@@ -60,7 +60,7 @@ def lch_rgb(l, c, h):
 
 def rgb(h):
     h = h.lstrip("#")
-    h = h[:3] * 2 if len(h) == 3 else h[:6]
+    h = "".join(c * 2 for c in h[:3]) if len(h) == 3 else h[:6]
     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 
@@ -133,29 +133,25 @@ def mapped(m, c, a, original):
     return "rgba(%d, %d, %d, %g)" % (*n, a) if a < .999 else hx(n)
 
 
+# Один проход: защищённые фрагменты и цвета разбираются одним regex. Раньше
+# для защиты цветов подставлялись NUL-плейсхолдеры, которые теоретически могли
+# совпасть с литералом в CSS. Теперь плейсхолдеров нет вовсе.
+TOKEN = re.compile(PROT.pattern + "|" + HEX.pattern + "|" + RGB.pattern, re.I | re.S)
+
+
 def retint(css, m):
-    keep = []
-
-    def hold(x):
-        keep.append(x.group(0))
-        return "\x00%d\x00" % (len(keep)-1)
-
-    def hexr(x):
-        h = x.group(0)[1:]
-        a = int(h[6:8], 16)/255 if len(h) == 8 else 1
-        return mapped(m, rgb(h), a, x.group(0))
-
-    def rgbg(x):
+    def sub(x):
+        s = x.group(0)
+        if s[0] in "\"'" or s[:3].lower() == "url":
+            return s
+        if s[0] == "#":
+            h = s[1:]
+            a = int(h[6:8], 16)/255 if len(h) == 8 else 1
+            return mapped(m, rgb(h), a, s)
         a = float(x[4].rstrip("%"))/(100 if "%" in x[4] else 1) if x[4] else 1
-        c = (int(x[1]), int(x[2]), int(x[3]))
-        return mapped(m, c, a, x.group(0))
+        return mapped(m, (int(x[1]), int(x[2]), int(x[3])), a, s)
 
-    css = PROT.sub(hold, css)
-    css = HEX.sub(hexr, css)
-    css = RGB.sub(rgbg, css)
-    # Один проход вместо N проходов по всему CSS: раньше каждый replace
-    # сканировал всю строку заново (658 подстановок → ~2 ГБ копирования).
-    return re.sub(r"\x00(\d+)\x00", lambda m: keep[int(m.group(1))], css)
+    return TOKEN.sub(sub, css)
 
 
 def build_stylesheet(m, css_dir):
@@ -287,8 +283,13 @@ def refresh(css, sig):
 
 def main():
     once = "--once" in sys.argv
-    FLAG.parent.mkdir(parents=True, exist_ok=True)
-    FLAG.touch()
+    try:
+        FLAG.parent.mkdir(parents=True, exist_ok=True)
+        FLAG.touch()
+    except OSError as e:
+        # Нет каталога Steam — CDP недоступен, но генерация/инъекция ещё могут
+        # сработать, если Steam уже запущен с включённой отладкой.
+        print("cannot create CDP flag:", e, file=sys.stderr)
     css, sig = "", None
     while True:
         css, sig = refresh(css, sig)
