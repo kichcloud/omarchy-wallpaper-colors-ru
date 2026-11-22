@@ -9,6 +9,7 @@ themes=~/.config/omarchy/themes
 picks=$state/picks.json
 off=$state/off
 modef=$state/mode
+statefile=$state/current.json
 backups=$state/backups
 marker="# Written by the Wallpaper Colors plugin. Choose Theme default in its bar popup to remove it."
 tmp=
@@ -56,6 +57,17 @@ mode_for() {
   (( $(magick "$1[0]" -resize 64x64! -colorspace Gray -format '%[fx:mean > 0.6]' info:) )) && echo light || echo dark
 }
 
+# Публикует результат наружу: текущая палитра, обои и режим в одном JSON.
+# Другие плагины читают $statefile вместо того, чтобы гадать по файлам темы.
+publish() {
+  local palette out f
+  palette=$(jq -Rsc 'split("\n") | map(select(test("^[a-z_]+ = "))) |
+    map(capture("^(?<k>[a-z_]+) = \"(?<v>[^\"]*)\"$")) | map({key:.k,value:.v}) | from_entries' "$1") || return
+  out=$(jq -nc --arg t "$theme" --arg m "$2" --arg w "$image" --argjson p "$palette" \
+    '{schema:1,theme:$t,mode:$m,wallpaper:$w,palette:$p,updated:(now|floor)}') || return
+  f=$(mktemp "$state/.current.XXXXXX"); printf '%s\n' "$out" >"$f"; mv "$f" "$statefile"
+}
+
 sync() {
   exec 9>"$state/lock"; flock 9; read_current
   is_off || from_git && return
@@ -69,6 +81,7 @@ sync() {
     matugen image "$image" --dry-run --mode "$mode" --source-color-index "$(picked)" --json hex |
       jq -r --arg mode "$mode" -f "$here/colors.jq"
   } >"$tmp"
+  publish "$tmp" "$mode"
   cmp -s "$tmp" "$target" && rm -f "$tmp" || { mv "$tmp" "$target"; reapply; }
 }
 
@@ -80,8 +93,10 @@ reset() {
   ours "$target" || return
   if [[ -f $backups/$theme.colors.toml ]]; then
     mv "$backups/$theme.colors.toml" "$target"
+    publish "$target" "$(mode_for "$image")"
   else
     rm "$target"; rmdir --ignore-fail-on-non-empty "$themes/$theme"
+    rm -f "$statefile"   # нет оверрайда — потребители читают файлы темы
   fi
   reapply
 }
