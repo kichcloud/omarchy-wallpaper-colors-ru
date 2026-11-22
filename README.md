@@ -35,30 +35,9 @@ $BIN shape modern|original
 
 - `~/.local/state/omarchy/wallpaper-colors/` — акценты, режим, бэкапы;
 - `~/.local/state/omarchy/wallpaper-colors/cursor/` — конфиг курсора и блокировка;
-- `~/.local/share/icons/Omarchy-Accent/` — установленная тема курсора (hyprcursor + Xcursor);
-- `~/.local/state/omarchy/wallpaper-colors/current.json` — публикуемый результат для других плагинов.
+- `~/.local/share/icons/Omarchy-Accent/` — установленная тема курсора (hyprcursor + Xcursor).
 
 Отдельный плагин `cursor-accent` и его хуки **не нужны** — удалены.
-
-## Интерфейс для других плагинов
-
-После каждой перекраски плагин атомарно пишет `current.json`:
-
-```json
-{
-  "schema": 1,
-  "theme": "ash-wc",
-  "mode": "dark",
-  "wallpaper": "/путь/к/обоям.jpg",
-  "palette": { "background": "#…", "accent": "#…", "foreground": "#…", … },
-  "updated": 1763800000
-}
-```
-
-Другие плагины могут читать `palette.<key>` и `wallpaper` напрямую вместо файлов темы.
-Файл удаляется при «Тема по умолчанию» — тогда потребитель должен вернуться к
-`colors.toml` активной темы. Пример адаптера: `plymouth/common.sh` в
-lock screen explorer использует `theme_color()` / `wallpaper_path()` отсюда.
 
 ## Обои
 
