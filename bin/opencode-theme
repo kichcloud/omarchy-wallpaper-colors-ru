@@ -175,3 +175,61 @@ cli.setdefault("theme", {})
 cli["theme"]["name"] = "wallpaper-glass"
 cli["theme"]["mode"] = "dark"
 write_json(cli_file, cli)
+
+
+# foot отвечает на OSC-запросы приложений своей палитрой. Без явных цветов в
+# конфиге это дефольтная палитра, не совпадающая с темой, — из-за гонки ответа
+# разные вкладки OpenCode получают разные цвета. Прописываем палитру явно.
+foot_palette = [
+    get("background", "#1b1c21"),
+    red,
+    green,
+    yellow,
+    blue,
+    magenta,
+    cyan,
+    get("foreground", "#e4e2e6"),
+    get("dark_background", bg),
+    get("bright_red", red),
+    get("bright_green", green),
+    get("bright_yellow", yellow),
+    get("bright_blue", blue),
+    get("bright_magenta", magenta),
+    get("bright_cyan", cyan),
+    get("bright_foreground", "#ffffff"),
+]
+hexv = lambda v: v.lstrip("#")
+reg = "\n".join(f"regular{i}={hexv(v)}" for i, v in enumerate(foot_palette[:8]))
+bri = "\n".join(f"bright{i}={hexv(v)}" for i, v in enumerate(foot_palette[8:]))
+palette_block = "\n".join([
+    f"foreground={hexv(get('foreground', '#e4e2e6'))}",
+    f"background={hexv(get('background', '#1b1c21'))}",
+    reg, bri, "",
+])
+import re
+for foot in (
+    home / ".local/state/omarchy/current/theme/foot.ini",
+    home / ".config/omarchy/themes/wallpaper-glass/foot.ini",
+):
+    if not foot.exists():
+        continue
+    text = foot.read_text()
+    # Убираем ошибочный раздел [colors] и одинокие '[' от ранних версий скрипта.
+    text = re.sub(r"^\[colors\]\n(?:[^\[]*\n)*", "", text, flags=re.M)
+    text = re.sub(r"^\[\s*$", "", text, flags=re.M)
+    # Обновляем существующий [colors-dark], сохраняя alpha/blur.
+    def rebuild(m):
+        section = m.group(2)
+        kept = "\n".join(
+            line for line in section.splitlines()
+            if re.match(r"^\s*(alpha|blur|selection-foreground|selection-background|cursor)\s*=", line)
+        )
+        return m.group(1) + palette_block + kept + "\n"
+
+    if "[colors-dark]" in text:
+        text = re.sub(r"(\[colors-dark\]\n)(.*?)(?=\n\[|\Z)", rebuild, text, flags=re.S)
+    else:
+        text = text.rstrip() + "\n\n[colors-dark]\n" + palette_block
+    tmp = foot.with_suffix(".ini.tmp")
+    tmp.write_text(text)
+    tmp.replace(foot)
