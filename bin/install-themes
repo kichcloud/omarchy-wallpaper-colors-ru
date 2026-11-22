@@ -7,7 +7,7 @@ THEME=wallpaper-glass
 DEST="$HOME/.config/omarchy/themes/$THEME"
 MARK="$DEST/.installed-by-wallpaper-colors"
 LOCK_DIR="$HOME/.config/omarchy/lock-designs"
-LOCK_ID=my-wallpaper-glass
+LOCK_ID=my-wallpaperglass
 
 # Рабочий стол: тема рядом со стоковыми, в штатной карусели.
 if [[ ! -f $MARK ]]; then
@@ -19,10 +19,18 @@ if [[ ! -f $MARK ]]; then
   "$ROOT/bin/wallpaper-colors" sync >/dev/null 2>&1 || true
 fi
 
+# Превью обновляем всегда: без preview-unlock.png темы нет в карусели
+# omarchy-plymouth-switcher, а unlock.png использует сам Plymouth.
+cp "$ROOT/themes/$THEME/preview-unlock.png" "$DEST/preview-unlock.png"
+cp "$ROOT/themes/$THEME/unlock.png" "$DEST/unlock.png"
+
 # Lock: стандартный макет с цветами и обоями от плагина.
 if [[ ! -f $LOCK_DIR/WallpaperGlass.qml ]]; then
   mkdir -p "$LOCK_DIR"
   cp "$ROOT/lock/WallpaperGlass.qml" "$LOCK_DIR/WallpaperGlass.qml"
+  mkdir -p "$LOCK_DIR/thirdparty-previews"
+  cp "$ROOT/lock/preview/my-wallpaperglass.jpg" \
+     "$LOCK_DIR/thirdparty-previews/my-wallpaperglass.jpg"
   settings="$LOCK_DIR/settings.json"
   if [[ -f $settings ]] && command -v jq >/dev/null; then
     tmp=$(mktemp)
