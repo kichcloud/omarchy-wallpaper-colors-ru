@@ -25,6 +25,11 @@ foot_set_alpha() {
     [[ -f $file ]] || continue
     sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$value/" "$file"
   done < <(foot_files)
+  # Запущенный foot не перечитывает конфиг: Omarchy умеет отправить ему OSC 11
+  # с альфой (urxvt-префикс [percent]). Это и даёт мгновенный эффект в терминале.
+  if command -v omarchy-theme-set-foot >/dev/null 2>&1; then
+    omarchy-theme-set-foot >/dev/null 2>&1 || true
+  fi
 }
 
 foot_set_blur() {
