@@ -65,14 +65,7 @@ src=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$bg.lua
 [[ -f $src ]] && cp "$src" "$T/$(basename "$src")"
 omarchy-theme-set-glass >/dev/null 2>&1 || true
 
-{
-  echo "# Управляется панелью «Цвета обоев» → Стиль."
-  for s in bar popups tooltip notifications launcher menu polkit lock; do
-    printf '[%s]\nbackground-alpha = %s\n\n' "$s" "$alpha"
-  done
-} >~/.config/omarchy/shell.toml
-
-theme=$(<~/.local/state/omarchy/current/theme.name)
+theme=$(cat ~/.local/state/omarchy/current/theme.name 2>/dev/null || true)
 for f in ~/.config/foot/foot.ini ~/.config/omarchy/themes/"$theme"/foot.ini; do
   [[ -f $f ]] || continue
   sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$alpha/" "$f"

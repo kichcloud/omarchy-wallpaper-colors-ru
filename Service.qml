@@ -11,7 +11,6 @@ Item {
 
   readonly property string dir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, ""))
   readonly property string bin: decodeURIComponent(String(Qt.resolvedUrl("bin/wallpaper-colors")).replace(/^file:\/\//, ""))
-  readonly property string cursorBin: decodeURIComponent(String(Qt.resolvedUrl("bin/cursor-recolor")).replace(/^file:\/\//, ""))
   property string lastBackground: ""
   property bool pending: false
 
@@ -29,15 +28,7 @@ Item {
     id: installProc
     running: false
     command: ["bash", root.dir + "bin/install-config"]
-    onExited: function(code) {
-      cursorProc.running = true
-      root.sync()
-    }
-  }
-  Process {
-    id: cursorProc
-    running: false
-    command: ["python3", root.cursorBin, "apply"]
+    onExited: function(code) { root.sync() }
   }
 
   Process {
