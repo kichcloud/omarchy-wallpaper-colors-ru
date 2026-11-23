@@ -59,7 +59,7 @@ check 'pick: нечисло → rc=2' eq "$rc" 2
 $BIN/glass-style glass >/dev/null 2>&1 || true
 $BIN/glass-style alpha 0.64 >/dev/null 2>&1
 check 'alpha → glass-alpha' eq "$(file "$ST/glass-alpha")" 0.64
-check 'foot остаётся непрозрачным' grep -q 'alpha=1.0' "$HOME/.config/foot/foot.ini" 2>/dev/null
+check 'foot с минимальной альфой' grep -q 'alpha=0.99' "$HOME/.config/foot/foot.ini" 2>/dev/null
 check 'alpha → shell.toml' grep -q 'background-alpha = 0.64' "$HOME/.config/omarchy/shell.toml" 2>/dev/null
 check 'Vesktop transparent=false' python3 -c 'import json,sys; assert json.load(open(sys.argv[1])).get("transparent") is False' "$HOME/.config/vesktop/settings/settings.json"
 check 'нативная альфа Discord отключена' test ! -f "$HOME/.local/share/omarchy-glass/alpha.css"

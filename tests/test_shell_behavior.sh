@@ -64,8 +64,8 @@ check 'values по умолчанию' eq "$($BIN/glass-style values)" '{"alpha"
 
 $BIN/glass-style alpha 0.64 >/dev/null 2>&1
 check 'alpha → state' eq "$(file "$STATE/glass-alpha")" 0.64
-check 'foot остаётся непрозрачным (основной)' grep -q 'alpha=1.0' "$HOME_DIR/.config/foot/foot.ini"
-check 'foot остаётся непрозрачным (тема)' grep -q 'alpha=1.0' "$CUR/theme/foot.ini"
+check 'foot с минимальной альфой (основной)' grep -q 'alpha=0.99' "$HOME_DIR/.config/foot/foot.ini"
+check 'foot с минимальной альфой (тема)' grep -q 'alpha=0.99' "$CUR/theme/foot.ini"
 check 'alpha → shell.toml' grep -q 'background-alpha = 0.64' "$HOME_DIR/.config/omarchy/shell.toml"
 check 'alpha → OSC в запущенный foot' grep -q 'omarchy-theme-set-foot' "$LOG"
 check 'alpha → hyprctl reload' grep -q 'hyprctl reload' "$LOG"
