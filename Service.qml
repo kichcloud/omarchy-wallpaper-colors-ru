@@ -59,4 +59,24 @@ Item {
     repeat: true
     onTriggered: if (!readlinkProc.running) readlinkProc.running = true
   }
+
+  // Steam получает палитру только при её смене. Если клиент стартует позже
+  // оболочки, установочный проход уже прошёл — ловим запись steam.pid и
+  // несколько секунд догоняем его CDP, переживая перезагрузку страниц входа.
+  FileView {
+    path: Quickshell.env("HOME") + "/.steam/steam.pid"
+    watchChanges: true
+    onFileChanged: root.followSteam()
+  }
+
+  function followSteam() {
+    if (steamProc.running) return
+    steamProc.running = true
+  }
+
+  Process {
+    id: steamProc
+    command: ["bash", "-c", "[[ -x $1 ]] && exec \"$1\" --follow 45", "steam-accent",
+              Quickshell.env("HOME") + "/.local/bin/steam-accent"]
+  }
 }

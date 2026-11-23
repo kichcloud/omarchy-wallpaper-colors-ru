@@ -117,6 +117,52 @@ class Failures(unittest.TestCase):
         inj.assert_called_once_with("old-css", mock.ANY)
 
 
+class Signature(unittest.TestCase):
+    def test_signature_follows_palette_changes(self):
+        # Смена акцента переписывает colors.toml и должна менять подпись,
+        # иначе --follow затрёт новый CSS закэшированным старым.
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            cur = home / ".local/state/omarchy/current"
+            (cur / "theme").mkdir(parents=True)
+            css = home / "css"
+            css.mkdir()
+            with mock.patch.object(sa, "HOME", home), mock.patch.object(sa, "CSS_DIR", css):
+                before = sa.signature()
+                (cur / "theme/colors.toml").write_text('accent = "#112233"\n')
+                after = sa.signature()
+        self.assertNotEqual(before, after)
+
+
+class Follow(unittest.TestCase):
+    def test_follow_timeout_arg(self):
+        with mock.patch.object(sa.sys, "argv", ["steam-accent", "--follow", "12.5"]):
+            self.assertEqual(sa.timeout_arg("--follow"), 12.5)
+        with mock.patch.object(sa.sys, "argv", ["steam-accent", "--follow", "bad"]):
+            self.assertEqual(sa.timeout_arg("--follow"), 0)
+        with mock.patch.object(sa.sys, "argv", ["steam-accent", "--once"]):
+            self.assertEqual(sa.timeout_arg("--follow"), 0)
+
+    def test_follow_stops_after_cdp_disappears(self):
+        # Два тика с CDP, затем три пустых: процесс должен выйти сам.
+        clock = iter(range(100))
+        with mock.patch.object(sa.time, "monotonic", side_effect=lambda: next(clock)), \
+             mock.patch.object(sa.time, "sleep"), \
+             mock.patch.object(sa, "refresh", return_value=("css", 1)) as refresh, \
+             mock.patch.object(sa, "pages", side_effect=[[1], [1], [], [], []]):
+            sa.follow(60)
+        self.assertEqual(refresh.call_count, 5)
+
+    def test_follow_ends_by_timeout_without_steam(self):
+        clock = iter(range(1000))
+        with mock.patch.object(sa.time, "monotonic", side_effect=lambda: next(clock)), \
+             mock.patch.object(sa.time, "sleep"), \
+             mock.patch.object(sa, "refresh", return_value=("", None)) as refresh, \
+             mock.patch.object(sa, "pages", return_value=[]):
+            sa.follow(3)
+        self.assertEqual(refresh.call_count, 2)
+
+
 class UnusualInputs(unittest.TestCase):
     def test_retint_percent_alpha(self):
         out = sa.retint("a{color:rgba(1, 2, 3, 50%)}", IdentityMapper())

@@ -2,9 +2,10 @@
 """Omarchy -> Steam live accent bridge: one daemon, no third-party mods.
 
 Источник: https://github.com/kichcloud/omarchy-steam-accent (MIT, см. LICENSE).
-В плагине вызывается в режиме --once по событию смены палитры, без демона.
+В плагине вызывается в режиме --once при смене палитры и в режиме --follow
+при запуске Steam; постоянного демона нет.
 """
-import base64, hashlib, json, math, os, re, socket, struct, subprocess, sys, urllib.request
+import base64, hashlib, json, math, os, re, socket, struct, subprocess, sys, time, urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -253,12 +254,17 @@ def inject(css, rev):
 
 
 def signature():
-    try:
-        t = (HOME/".local/state/omarchy/current/theme.name").stat().st_mtime_ns
-    except OSError:
-        t = 0
+    # Палитра тоже входит в подпись: иначе процесс --follow, запущенный при
+    # старте Steam, мог бы затереть только что применённый новый акцент старым CSS.
+    stamps = []
+    for p in ("theme.name", "theme.generation", "theme/colors.toml"):
+        try:
+            st = (HOME/".local/state/omarchy/current"/p).stat()
+            stamps.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            stamps.append((0, 0))
     files = [(f.stat().st_mtime_ns, f.stat().st_size) for f in CSS_DIR.glob("*.css")]
-    return t, len(files), sum(s for _, s in files), max((m for m, _ in files), default=0)
+    return tuple(stamps), len(files), sum(s for _, s in files), max((m for m, _ in files), default=0)
 
 
 def refresh(css, sig):
@@ -277,6 +283,36 @@ def refresh(css, sig):
     return css, sig
 
 
+def timeout_arg(name):
+    """Необязательный таймаут в секундах, например --follow 45."""
+    try:
+        return max(0.0, float(sys.argv[sys.argv.index(name) + 1]))
+    except (ValueError, IndexError):
+        return 0.0
+
+
+def follow(seconds):
+    """Догонять запускающийся Steam, пока его CDP отвечает.
+
+    Нужен, когда клиент стартует позже оболочки: установочный проход уже
+    прошёл, а Steam ещё не открыл CDP. Повторная инъекция переживает
+    перезагрузку документа при входе в аккаунт. Это не демон: процесс
+    завершается через несколько секунд после старта Steam.
+    """
+    end = time.monotonic() + seconds
+    seen = idle = 0
+    css, sig = "", None
+    while time.monotonic() < end:
+        css, sig = refresh(css, sig)
+        if pages():
+            seen, idle = 1, 0
+        elif seen:
+            idle += 1
+            if idle >= 3:
+                return
+        time.sleep(3)
+
+
 def main():
     try:
         FLAG.parent.mkdir(parents=True, exist_ok=True)
@@ -285,7 +321,11 @@ def main():
         # Нет каталога Steam — CDP недоступен, но генерация/инъекция ещё могут
         # сработать, если Steam уже запущен с включённой отладкой.
         print("cannot create CDP flag:", e, file=sys.stderr)
-    refresh("", None)
+    follow_for = timeout_arg("--follow")
+    if follow_for:
+        follow(follow_for)
+    else:
+        refresh("", None)
     return 0
 
 
