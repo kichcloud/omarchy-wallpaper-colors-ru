@@ -79,6 +79,7 @@ migrate_state() {
 }
 
 deploy_assets() {
+  mkdir -p "$HOME_DIR/.config/omarchy/themed"
   cp "$ROOT/assets/omarchy/omarchy-glass.palette.css.tpl" \
      "$HOME_DIR/.config/omarchy/themed/omarchy-glass.palette.css.tpl"
   mkdir -p "$HOME_DIR/.local/share/omarchy-glass"
@@ -89,6 +90,7 @@ deploy_assets() {
   chmod +x "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass"
 
   # Единая прозрачность и блюр для всех окон.
+  mkdir -p "$HOME_DIR/.config/hypr"
   cp "$ROOT/assets/omarchy/uniform-glass.lua" "$HOME_DIR/.config/hypr/uniform-glass.lua"
   local hl=$HOME_DIR/.config/hypr/hyprland.lua
   grep -q 'require("hypr.uniform-glass")' "$hl" 2>/dev/null || \
@@ -152,6 +154,7 @@ configure_window_toggle() {
   local t=${XDG_STATE_HOME:-$HOME_DIR/.local/state}/omarchy/toggles/hypr
   local wmode=glassy wsrc
   [[ $style == opaque ]] && wmode=opaque
+  mkdir -p "$t"
   rm -f "$t/window-glassy.lua" "$t/window-opaque.lua"
   wsrc=${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/toggles/window-$wmode.lua
   [[ -f $wsrc ]] && cp "$wsrc" "$t/$(basename "$wsrc")"

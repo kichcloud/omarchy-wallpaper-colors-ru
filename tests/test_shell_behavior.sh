@@ -13,10 +13,7 @@ CUR=$HOME_DIR/.local/state/omarchy/current
 STUBS=$TMP/stubs
 LOG=$TMP/calls.log
 mkdir -p "$STATE" "$CUR/theme" "$HOME_DIR/.config/foot" \
-         "$HOME_DIR/.config/omarchy/themes/wallpaper-glass" \
-         "$HOME_DIR/.config/omarchy/themed" "$HOME_DIR/.config/hypr" \
-         "$HOME_DIR/.local/state/omarchy/toggles/hypr" \
-         "$STUBS" "$TMP/runtime"
+         "$HOME_DIR/.config/omarchy/themes/wallpaper-glass" "$STUBS" "$TMP/runtime"
 
 echo wallpaper-glass >"$CUR/theme.name"
 printf 'dark\n' >"$STATE/mode"
@@ -30,7 +27,7 @@ for f in "$HOME_DIR/.config/foot/foot.ini" \
 done
 
 # Заглушки внешних команд — реальная система не трогается.
-for name in hyprctl omarchy omarchy-bar omarchy-theme-set-glass omarchy-theme-set-foot omarchy-notification-send; do
+for name in hyprctl omarchy omarchy-bar omarchy-theme-set-glass omarchy-theme-set-foot omarchy-notification-send xsetroot; do
   cat >"$STUBS/$name" <<EOF
 #!/bin/sh
 echo "$name \$*" >>"$LOG"
@@ -42,7 +39,14 @@ done
 cat >"$STUBS/matugen" <<'EOF'
 #!/bin/sh
 case " $* " in
-  *" --show-source-colors "*) printf '#112233\n#445566\n' ;;
+  *" --show-source-colors "*)
+    # Проверка, что pick читает состояние под блокировкой: если lock свободен,
+    # тест оставит маркер и упадёт.
+    if [ "${LOCK_PROBE:-}" = 1 ] &&
+       ! flock -n "$HOME/.local/state/omarchy/wallpaper-colors/lock" true; then
+      : >"$HOME/.local/state/omarchy/wallpaper-colors/lock-probe"
+    fi
+    printf '#112233\n#445566\n' ;;
   *" color hex "*) printf '{"colors":{"primary":{"dark":{"color":"#112233"}}}}' ;;
   *) printf '{"colors":{"source_color":{"dark":{"color":"#112233"}}}}' ;;
 esac
@@ -51,7 +55,8 @@ EOF
 chmod +x "$STUBS/matugen"
 
 export HOME="$HOME_DIR" PATH="$STUBS:$PATH" \
-       XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_RUNTIME_DIR="$TMP/runtime"
+       XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_RUNTIME_DIR="$TMP/runtime" \
+       WALLPAPER_COLORS_SKIP_TOOLS=1
 
 pass=0; fail=0
 check() {
@@ -94,6 +99,11 @@ check 'невалидный alpha не меняет состояние' eq "$(fi
 check 'blur 31 отклонён' eq "$(rc_of "$BIN/glass-style" blur 31)" 2
 check 'pick abc отклонён' eq "$(rc_of "$BIN/wallpaper-colors" pick abc)" 2
 check 'pick 99 вне диапазона' eq "$(rc_of "$BIN/wallpaper-colors" pick 99)" 2
+export LOCK_PROBE=1
+"$BIN/wallpaper-colors" pick 99 >/dev/null 2>&1 || true
+check 'pick читает состояние под блокировкой' test -f "$STATE/lock-probe"
+unset LOCK_PROBE
+rm -f "$STATE/lock-probe"
 
 : >"$LOG"
 $BIN/wallpaper-colors pick abc >/dev/null 2>&1 || true
@@ -104,6 +114,7 @@ printf 'garbage\n' >"$STATE/glass-blur"
 check 'values при битом состоянии' eq "$($BIN/glass-style values)" '{"alpha":0.85,"blur":4}'
 check 'install-config --light при битом alpha' eq "$(rc_of "$BIN/install-config" --light garbage)" 0
 check 'shell.toml не сломан' grep -q 'background-alpha = 0.85' "$HOME_DIR/.config/omarchy/shell.toml"
+: >"$LOG"
 $BIN/install-config 0.66 >/dev/null 2>&1
 check 'install-config с позиционным alpha' grep -q 'background-alpha = 0.66' "$HOME_DIR/.config/omarchy/shell.toml"
 $BIN/install-config garbage >/dev/null 2>&1
@@ -111,6 +122,7 @@ check 'install-config с битым alpha берёт default' grep -q 'backgroun
 printf '0\n' >"$STATE/glass-blur"
 $BIN/install-config >/dev/null 2>&1
 check 'install-config восстанавливает blur=no' grep -q 'blur=no' "$CUR/theme/foot.ini"
+check 'изолированный install-config не трогает xsetroot' bash -c '! grep -q xsetroot "$1"' _ "$LOG"
 
 # --- штатный стиль ---
 $BIN/glass-style opaque >/dev/null 2>&1

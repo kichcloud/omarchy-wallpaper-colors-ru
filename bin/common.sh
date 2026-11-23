@@ -84,6 +84,10 @@ reload_hypr() {
 
 # Зависимости, которые перекрашиваются вместе с палитрой.
 apply_tools() {
+  # Изолированные тесты не должны трогать живой курсор и запущенный Steam.
+  if [[ ${WALLPAPER_COLORS_SKIP_TOOLS:-} == 1 ]]; then
+    return 0
+  fi
   local root=$1 steam=$HOME/.local/bin/steam-accent
   [[ -f $root/bin/cursor-recolor ]] && python3 "$root/bin/cursor-recolor" apply >/dev/null 2>&1 || true
   [[ -f $root/bin/opencode-theme ]] && python3 "$root/bin/opencode-theme" >/dev/null 2>&1 || true

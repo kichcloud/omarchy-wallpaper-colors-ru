@@ -68,8 +68,7 @@ mode_for() {
   (( $(magick "$1[0]" -resize 64x64! -colorspace Gray -format '%[fx:mean > 0.6]' info:) )) && echo light || echo dark
 }
 
-sync() {
-  lock_and_read
+sync_locked() {
   is_off || from_git && return
   need_matugen
   local target=$themes/$theme/colors.toml mode; mode=$(mode_for "$image")
@@ -82,6 +81,11 @@ sync() {
       jq -r --arg mode "$mode" -f "$here/colors.jq"
   } >"$tmp"
   cmp -s "$tmp" "$target" && rm -f "$tmp" || { mv "$tmp" "$target"; reapply; }
+}
+
+sync() {
+  lock_and_read
+  sync_locked
 }
 
 reset() {
@@ -129,7 +133,7 @@ source_count() {
 pick() {
   local n=${1:-}
   [[ $n =~ ^[0-9]+$ ]] || { echo "Использование: wallpaper-colors pick <индекс>" >&2; return 2; }
-  read_current
+  lock_and_read
   need_matugen
   local max; max=$(source_count)
   (( max > 0 && n < max )) || { echo "Нет цвета с индексом $n (доступно $max)" >&2; return 2; }
@@ -141,7 +145,7 @@ pick() {
     jq --arg i "$image" --argjson n "$n" '.[$i] = $n' "$picks" 2>/dev/null >"$tmp" ||
       jq -n --arg i "$image" --argjson n "$n" '{($i): $n}' >"$tmp"
   fi
-  mv "$tmp" "$picks"; tmp=""; sync
+  mv "$tmp" "$picks"; tmp=""; sync_locked
 }
 
 setmode() {
