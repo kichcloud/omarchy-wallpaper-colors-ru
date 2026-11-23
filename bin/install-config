@@ -128,6 +128,15 @@ configure_steam() {
   install -m755 "$src" "$dst"
 }
 
+configure_folio() {
+  # Локальный wrapper перехватывает запуск /usr/bin/folio и даёт ему нативную
+  # альфу фона из colors.toml. ~/.local/bin уже раньше в PATH.
+  local src=$ROOT/assets/folio/folio dst=$HOME_DIR/.local/bin/folio
+  [[ -f $src ]] || return 0
+  mkdir -p "$HOME_DIR/.local/bin"
+  install -m755 "$src" "$dst"
+}
+
 configure_osd() {
   # OSD встроен в этот плагин — стоковый и старый клон больше не нужны.
   omarchy plugin disable kich.osd >/dev/null 2>&1 || true
@@ -208,6 +217,7 @@ shell_alpha
 vesktop_alpha
 configure_vesktop
 configure_steam
+configure_folio
 configure_osd
 configure_window_toggle
 omarchy-bar background opaque >/dev/null 2>&1 || true

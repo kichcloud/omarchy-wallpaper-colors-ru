@@ -66,6 +66,7 @@ check 'alpha.css следует за ползунком' grep -q -- '--oc-alpha:
 check 'Discord прозрачнее общего уровня' grep -q -- '--dc-alpha: 0.32' "$HOME/.local/share/omarchy-glass/alpha.css"
 check 'тема использует dc-alpha с fallback' grep -q 'var(--dc-alpha, var(--oc-alpha))' "$HOME/.config/vesktop/themes/omarchy-glass.theme.css"
 check 'Vesktop без композиторской opacity' grep -q 'vesktop-native-alpha' "$HOME/.config/hypr/uniform-glass.lua"
+check 'folio wrapper установлен' test -x "$HOME/.local/bin/folio"
 
 $BIN/glass-style blur 8 >/dev/null 2>&1
 check 'blur → glass-blur' eq "$(file "$ST/glass-blur")" 8

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Запуск Folio с нативной прозрачностью фона.
+# Folio читает colors.toml один раз при старте и держит цвета в памяти, поэтому
+# подставляем альфу в `background` только на время запуска, затем файл вернём.
+set -uo pipefail
+
+SRC=/usr/bin/folio
+COLORS=$HOME/.local/state/omarchy/current/theme/colors.toml
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/wallpaper-colors
+
+style=$(cat "$STATE/glass-style" 2>/dev/null || true)
+alpha=$(cat "$STATE/glass-alpha" 2>/dev/null || true)
+[[ $alpha =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || {
+  alpha=0.85
+  [[ $style == opaque ]] && alpha=1.0
+}
+if [[ $style == opaque || $alpha == 1 || $alpha == 1.0 ]]; then
+  exec "$SRC" "$@"
+fi
+
+# Как у остальных стеклянных поверхностей: заметная прозрачность без потери
+# читаемости текста.
+fa=$(awk -v a="$alpha" 'BEGIN { v = a * 0.5; if (v < 0.05) v = 0.05; printf "%d", v * 255 + 0.5 }')
+ahex=$(printf '%02x' "$fa")
+
+if [[ ! -f $COLORS ]]; then
+  exec "$SRC" "$@"
+fi
+backup=$(mktemp)
+cp "$COLORS" "$backup"
+restore() {
+  cp "$backup" "$COLORS" 2>/dev/null || true
+  rm -f "$backup"
+}
+trap restore EXIT INT TERM
+
+sed -i -E "s/^background = \"(#[0-9a-fA-F]{6,8})\"/background = \"\\1${ahex}\"/" "$COLORS"
+
+"$SRC" "$@" &
+pid=$!
+# Ждём появления окна Folio: после этого colors.toml можно вернуть.
+for _ in $(seq 1 40); do
+  if hyprctl clients -j 2>/dev/null | grep -q '"class": "folio"'; then
+    break
+  fi
+  sleep 0.25
+done
+restore
+trap - EXIT INT TERM
+wait "$pid"
