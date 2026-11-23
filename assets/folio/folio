@@ -45,6 +45,8 @@ for _ in $(seq 1 40); do
   fi
   sleep 0.25
 done
+# Окно появляется раньше, чем QML дочитывает тему — даём ему момент.
+sleep 1
 restore
 trap - EXIT INT TERM
 wait "$pid"

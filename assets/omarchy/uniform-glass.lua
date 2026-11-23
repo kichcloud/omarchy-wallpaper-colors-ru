@@ -54,13 +54,6 @@ hl.window_rule({
   opacity = string.format("%.2f override %.2f override", A, A),
 })
 
--- Folio тоже рисует фон сам (wrapper подставляет альфу в colors.toml).
-hl.window_rule({
-  name = "folio-native-alpha",
-  match = { class = "folio" },
-  opacity = "1 override 1 override",
-})
-
 -- Все окна, включая браузер, остаются одинаково прозрачными (A).
 -- Раньше здесь было исключение для полноэкранного видео, но оно срабатывало
 -- и при "на всю ширину" (maximized) — браузер становился непрозрачным.
