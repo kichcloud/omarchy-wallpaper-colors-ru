@@ -9,6 +9,37 @@ read_theme() {
   cat "$CURRENT_DIR/theme.name" 2>/dev/null || true
 }
 
+# Состояние стиля читается из одного места: битый файл даёт штатные значения,
+# а не «полупрозрачный» интерфейс с alpha=0.
+state_get() {
+  cat "$STATE_DIR/$1" 2>/dev/null || true
+}
+
+glass_style() {
+  local s
+  s=$(state_get glass-style)
+  [[ $s == opaque || $s == glass ]] || s=glass
+  printf '%s\n' "$s"
+}
+
+glass_default_alpha() {
+  [[ ${1:-} == opaque ]] && echo 1.0 || echo 0.85
+}
+
+glass_alpha() {
+  local a style=${1:-$(glass_style)}
+  a=$(state_get glass-alpha)
+  valid_alpha_value "$a" || a=$(glass_default_alpha "$style")
+  printf '%s\n' "$a"
+}
+
+glass_blur() {
+  local b
+  b=$(state_get glass-blur)
+  valid_blur "$b" || b=4
+  printf '%s\n' "$b"
+}
+
 # Все foot.ini, куда пишутся альфа и блюр. Порядок соответствует порядку include.
 foot_files() {
   local theme

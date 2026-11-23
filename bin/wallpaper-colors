@@ -25,6 +25,12 @@ need_matugen() {
   echo "matugen is not installed" >&2; exit 1
 }
 
+# Исходные цвета обоев: один формат разбора для панели и проверки индекса pick.
+source_colors() {
+  matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null |
+    grep -E '^#[0-9a-fA-F]{6}$'
+}
+
 # Оба значения читаются под одной блокировкой с omarchy theme set.
 read_current() {
   exec 8>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-theme-set.lock"; flock 8
@@ -37,7 +43,13 @@ read_current() {
   fi
 }
 
+# Мутации палитры сериализуются, чтобы два sync не писали colors.toml одновременно.
+lock_and_read() {
+  exec 9>"$state/lock"; flock 9; read_current
+}
+
 from_git()   { [[ ! -L $themes/$theme && -d $themes/$theme/.git ]]; }
+backup_path() { printf '%s/backup.%s.colors.toml\n' "$state" "$theme"; }
 is_off()     { grep -qxF "$theme" "$off"; }
 ours()       { [[ -f $1 ]] && [[ $(head -n1 "$1") == "$marker" ]]; }
 picked()     { jq -r --arg i "$image" '.[$i] // 0' "$picks" 2>/dev/null || echo 0; }
@@ -57,12 +69,12 @@ mode_for() {
 }
 
 sync() {
-  exec 9>"$state/lock"; flock 9; read_current
+  lock_and_read
   is_off || from_git && return
   need_matugen
   local target=$themes/$theme/colors.toml mode; mode=$(mode_for "$image")
   mkdir -p "$themes/$theme"
-  [[ -f $target ]] && ! ours "$target" && cp "$target" "$state/backup.$theme.colors.toml"
+  [[ -f $target ]] && ! ours "$target" && cp "$target" "$(backup_path)"
   tmp=$(mktemp "$themes/$theme/.colors.toml.XXXXXX")
   {
     echo "$marker"
@@ -73,13 +85,13 @@ sync() {
 }
 
 reset() {
-  exec 9>"$state/lock"; flock 9; read_current
+  lock_and_read
   is_off || echo "$theme" >>"$off"
   from_git && return
   local target=$themes/$theme/colors.toml
   ours "$target" || return
-  if [[ -f $state/backup.$theme.colors.toml ]]; then
-    mv "$state/backup.$theme.colors.toml" "$target"
+  if [[ -f $(backup_path) ]]; then
+    mv "$(backup_path)" "$target"
   elif [[ -f $here/../themes/$theme/colors.toml ]]; then
     # У собственной темы плагина нет стокового бэкапа — возвращаем цвета,
     # с которыми она поставляется, а не оставляем тему без палитры вообще.
@@ -99,8 +111,7 @@ sources() {
   need_matugen
   local mode c colors; mode=$(mode_for "$image")
   colors=$(
-    matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null |
-      grep -E '^#[0-9a-fA-F]{6}$' |
+    source_colors |
       while read -r c; do
         matugen color hex "$c" --dry-run --mode "$mode" --json hex 2>/dev/null |
           jq -r --arg m "$mode" '.colors.primary[$m].color'
@@ -112,8 +123,7 @@ sources() {
 }
 
 source_count() {
-  matugen image "$image" --show-source-colors --dry-run --json hex 2>/dev/null |
-    grep -c -E '^#[0-9a-fA-F]{6}$' || true
+  source_colors | wc -l || true
 }
 
 pick() {

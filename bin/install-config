@@ -13,13 +13,17 @@ MARK=$DEST/.installed-by-wallpaper-colors
 LOCK_DIR=$HOME_DIR/.config/omarchy/lock-designs
 LOCK_ID=my-wallpaperglass
 
-style=$(cat "$STATE_DIR/glass-style" 2>/dev/null || true)
-default_alpha=$(cat "$STATE_DIR/glass-alpha" 2>/dev/null || true)
-valid_alpha_value "$default_alpha" || {
-  default_alpha=0.85
-  [[ $style == opaque ]] && default_alpha=1.0
-}
-alpha=${1:-$default_alpha}
+style=$(glass_style)
+default_alpha=$(glass_alpha "$style")
+
+# --light — внутренний путь ползунка: alpha во втором аргументе, без смены темы.
+if [[ ${1:-} == --light ]]; then
+  only_alpha=1
+  alpha=${2:-$default_alpha}
+else
+  only_alpha=0
+  alpha=${1:-$default_alpha}
+fi
 # Аргумент от ползунка тоже проверяем: битое значение не должно попасть в shell.toml.
 valid_alpha_value "$alpha" || alpha=$default_alpha
 
@@ -45,9 +49,7 @@ p.write_text(text)
 PY
 }
 
-if [[ ${1:-} == --light ]]; then
-  alpha=${2:-$default_alpha}
-  valid_alpha_value "$alpha" || alpha=$default_alpha
+if (( only_alpha )); then
   shell_alpha
   # Lua-конфиг Hyprland читает именно этот файл — держим его в синхроне с shell.toml.
   printf '%s\n' "$alpha" >"$STATE_DIR/glass-alpha"
@@ -93,17 +95,24 @@ deploy_assets() {
     printf '\nrequire("hypr.uniform-glass") -- uniform transparency + blur for every window and layer\n' >>"$hl"
 }
 
-configure_vesktop() {
-  # Устаревший файл нативной альфы больше не используется.
-  rm -f "$HOME_DIR/.local/share/omarchy-glass/alpha.css"
-  local vs=$HOME_DIR/.config/vesktop/settings/settings.json tmp
-  [[ -f $vs ]] && command -v jq >/dev/null || return 0
+# Атомарно правит JSON: при ошибке jq исходный файл остаётся нетронутым.
+jq_edit() {
+  local file=$1 filter=$2 tmp
+  shift 2
   tmp=$(mktemp)
-  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$vs" >"$tmp"; then
-    mv "$tmp" "$vs"
+  if jq "$@" "$filter" "$file" >"$tmp"; then
+    mv "$tmp" "$file"
   else
     rm -f "$tmp"
   fi
+}
+
+configure_vesktop() {
+  # Устаревший файл нативной альфы больше не используется.
+  rm -f "$HOME_DIR/.local/share/omarchy-glass/alpha.css"
+  local vs=$HOME_DIR/.config/vesktop/settings/settings.json
+  [[ -f $vs ]] && command -v jq >/dev/null || return 0
+  jq_edit "$vs" '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false'
 }
 
 configure_steam() {
@@ -172,14 +181,9 @@ install_lock() {
   mkdir -p "$LOCK_DIR/thirdparty-previews"
   cp "$ROOT/lock/preview/my-wallpaperglass.jpg" \
      "$LOCK_DIR/thirdparty-previews/my-wallpaperglass.jpg"
-  local settings=$LOCK_DIR/settings.json tmp
+  local settings=$LOCK_DIR/settings.json
   if [[ -f $settings ]] && command -v jq >/dev/null; then
-    tmp=$(mktemp)
-    if jq --arg id "$LOCK_ID" '.design = $id' "$settings" >"$tmp"; then
-      mv "$tmp" "$settings"
-    else
-      rm -f "$tmp"
-    fi
+    jq_edit "$settings" '.design = $id' --arg id "$LOCK_ID"
   else
     printf '{\n  "design": "%s"\n}\n' "$LOCK_ID" >"$settings"
   fi
@@ -187,7 +191,7 @@ install_lock() {
 
 refresh_theme() {
   # Пересобрать палитру/тему под новые шаблоны.
-  THEME_NAME=$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || true)
+  THEME_NAME=$(read_theme)
   [[ -n $THEME_NAME ]] || THEME_NAME=$THEME
   OMARCHY_THEME_SKIP_BACKGROUND=1 omarchy theme set "$THEME_NAME" >/dev/null 2>&1 || true
   # omarchy theme set может не дёрнуть хуки, если тема не менялась — вызываем
@@ -199,9 +203,7 @@ refresh_theme() {
 restore_blur() {
   # Хуки темы выше всегда пишут blur=yes. Если пользователь выключил блюр
   # ползунком, возвращаем сохранённое значение — последним шагом.
-  local blurv
-  blurv=$(cat "$STATE_DIR/glass-blur" 2>/dev/null || true)
-  if [[ $blurv =~ ^[0-9]+$ ]] && (( blurv == 0 )); then
+  if (( $(glass_blur) == 0 )); then
     foot_set_blur no
   fi
 }

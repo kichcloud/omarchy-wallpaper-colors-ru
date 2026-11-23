@@ -13,9 +13,13 @@ CUR=$HOME_DIR/.local/state/omarchy/current
 STUBS=$TMP/stubs
 LOG=$TMP/calls.log
 mkdir -p "$STATE" "$CUR/theme" "$HOME_DIR/.config/foot" \
-         "$HOME_DIR/.config/omarchy/themes/wallpaper-glass" "$STUBS" "$TMP/runtime"
+         "$HOME_DIR/.config/omarchy/themes/wallpaper-glass" \
+         "$HOME_DIR/.config/omarchy/themed" "$HOME_DIR/.config/hypr" \
+         "$HOME_DIR/.local/state/omarchy/toggles/hypr" \
+         "$STUBS" "$TMP/runtime"
 
 echo wallpaper-glass >"$CUR/theme.name"
+printf 'dark\n' >"$STATE/mode"
 printf 'accent = "#112233"\nbackground = "#000000"\n' >"$CUR/colors.toml"
 printf '# fake\n' >"$CUR/bg.jpg"
 ln -s "$CUR/bg.jpg" "$CUR/background"
@@ -34,11 +38,12 @@ exit 0
 EOF
   chmod +x "$STUBS/$name"
 done
-# matugen нужен только для проверки диапазона pick: отдаём два исходных цвета.
+# matugen нужен для sources и проверки диапазона pick: отдаём два исходных цвета.
 cat >"$STUBS/matugen" <<'EOF'
 #!/bin/sh
 case " $* " in
   *" --show-source-colors "*) printf '#112233\n#445566\n' ;;
+  *" color hex "*) printf '{"colors":{"primary":{"dark":{"color":"#112233"}}}}' ;;
   *) printf '{"colors":{"source_color":{"dark":{"color":"#112233"}}}}' ;;
 esac
 exit 0
@@ -61,6 +66,8 @@ rc_of() { "$@" >/dev/null 2>&1 && echo 0 || echo $?; }
 # --- обычное использование ---
 check 'status по умолчанию' eq "$($BIN/glass-style status)" glass
 check 'values по умолчанию' eq "$($BIN/glass-style values)" '{"alpha":0.85,"blur":4}'
+check 'sources отдаёт исходные цвета' eq "$($BIN/wallpaper-colors sources)" \
+  '{"theme":"wallpaper-glass","locked":false,"active":0,"mode":"dark","colors":["#112233","#112233"]}'
 
 $BIN/glass-style alpha 0.64 >/dev/null 2>&1
 check 'alpha → state' eq "$(file "$STATE/glass-alpha")" 0.64
@@ -97,6 +104,13 @@ printf 'garbage\n' >"$STATE/glass-blur"
 check 'values при битом состоянии' eq "$($BIN/glass-style values)" '{"alpha":0.85,"blur":4}'
 check 'install-config --light при битом alpha' eq "$(rc_of "$BIN/install-config" --light garbage)" 0
 check 'shell.toml не сломан' grep -q 'background-alpha = 0.85' "$HOME_DIR/.config/omarchy/shell.toml"
+$BIN/install-config 0.66 >/dev/null 2>&1
+check 'install-config с позиционным alpha' grep -q 'background-alpha = 0.66' "$HOME_DIR/.config/omarchy/shell.toml"
+$BIN/install-config garbage >/dev/null 2>&1
+check 'install-config с битым alpha берёт default' grep -q 'background-alpha = 0.85' "$HOME_DIR/.config/omarchy/shell.toml"
+printf '0\n' >"$STATE/glass-blur"
+$BIN/install-config >/dev/null 2>&1
+check 'install-config восстанавливает blur=no' grep -q 'blur=no' "$CUR/theme/foot.ini"
 
 # --- штатный стиль ---
 $BIN/glass-style opaque >/dev/null 2>&1
@@ -104,6 +118,7 @@ $BIN/glass-style opaque >/dev/null 2>&1
 $BIN/glass-style alpha 0.50 >/dev/null 2>&1
 $BIN/glass-style blur 6 >/dev/null 2>&1
 check 'opaque игнорирует alpha' test ! -f "$STATE/glass-alpha"
+check 'opaque → values по умолчанию' eq "$($BIN/glass-style values)" '{"alpha":1.0,"blur":6}'
 check 'opaque не включает blur в foot' bash -c '! grep -q blur=yes "$1"' _ "$CUR/theme/foot.ini"
 check 'opaque не дёргает OSC foot' bash -c '! grep -q "omarchy-theme-set-foot" "$1"' _ "$LOG"
 

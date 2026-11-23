@@ -10,8 +10,7 @@ ST=$STATE_DIR
 mkdir -p "$ST"
 mode=${1:-status}
 
-style=$(cat "$ST/glass-style" 2>/dev/null || true)
-[[ $style == opaque || $style == glass ]] || style=glass
+style=$(glass_style)
 alpha_file=$ST/glass-alpha
 blur_file=$ST/glass-blur
 
@@ -20,12 +19,7 @@ cmd_status() {
 }
 
 cmd_values() {
-  local a b
-  a=$(cat "$alpha_file" 2>/dev/null || true)
-  valid_alpha_value "$a" || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
-  b=$(cat "$blur_file" 2>/dev/null || echo 4)
-  valid_blur "$b" || b=4
-  jq -nc --argjson a "$a" --argjson b "$b" '{alpha:$a, blur:$b}'
+  jq -nc --argjson a "$(glass_alpha "$style")" --argjson b "$(glass_blur)" '{alpha:$a, blur:$b}'
 }
 
 cmd_alpha() {
@@ -52,8 +46,8 @@ cmd_blur() {
 }
 
 cmd_style() {
-  local s=$1 alpha=0.85
-  [[ $s == opaque ]] && alpha=1.0
+  local s=$1 alpha
+  alpha=$(glass_default_alpha "$s")
   printf '%s\n' "$s" >"$ST/glass-style"
   rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
   # Тумблер окон, конфиги и хуки ставит install-config.
