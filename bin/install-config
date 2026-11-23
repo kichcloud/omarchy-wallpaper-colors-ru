@@ -218,6 +218,6 @@ omarchy-bar background opaque >/dev/null 2>&1 || true
 install_theme
 install_lock
 refresh_theme
-foot_set_alpha 1.0   # после theme set: foot остаётся непрозрачным,透明度 даёт композитор
+foot_set_alpha   # после theme set: вернуть foot минимальную альфу для blur
 apply_tools "$ROOT"
 restore_blur

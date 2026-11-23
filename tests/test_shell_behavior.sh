@@ -81,6 +81,9 @@ check 'alpha 1 принят' eq "$(rc_of "$BIN/glass-style" alpha 1)" 0
 check 'alpha 0.2 отклонён' eq "$(rc_of "$BIN/glass-style" alpha 0.2)" 2
 check 'alpha 1.1 отклонён' eq "$(rc_of "$BIN/glass-style" alpha 1.1)" 2
 check 'alpha abc отклонён' eq "$(rc_of "$BIN/glass-style" alpha abc)" 2
+alpha_before=$(file "$STATE/glass-alpha")
+$BIN/glass-style alpha abc >/dev/null 2>&1 || true
+check 'невалидный alpha не меняет состояние' eq "$(file "$STATE/glass-alpha")" "$alpha_before"
 check 'blur 31 отклонён' eq "$(rc_of "$BIN/glass-style" blur 31)" 2
 check 'pick abc отклонён' eq "$(rc_of "$BIN/wallpaper-colors" pick abc)" 2
 check 'pick 99 вне диапазона' eq "$(rc_of "$BIN/wallpaper-colors" pick 99)" 2

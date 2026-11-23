@@ -94,6 +94,7 @@ check 'manifest: clonedFrom omarchy.osd' python3 -c 'import json,sys; d=json.loa
 # --- идемпотентность установки ---
 $BIN/install-config >/dev/null 2>&1
 check 'require в hyprland.lua не дублируется' bash -c '[[ $(grep -c "require(\"hypr.uniform-glass\")" "$1" 2>/dev/null) == 1 ]]' _ "$HOME/.config/hypr/hyprland.lua"
+check 'привязки folio не дублируются' bash -c '[[ $(grep -c "/home/kich/.local/bin/folio" "$1") == 2 ]]' _ "$HOME/.config/hypr/bindings.lua"
 check 'секции shell.toml не дублируются' bash -c '[[ -z $(grep "^\[" "$1" 2>/dev/null | sort | uniq -d) ]]' _ "$HOME/.config/omarchy/shell.toml"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"

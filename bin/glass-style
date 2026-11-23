@@ -15,62 +15,59 @@ style=$(cat "$ST/glass-style" 2>/dev/null || true)
 alpha_file=$ST/glass-alpha
 blur_file=$ST/glass-blur
 
-if [[ $mode == status ]]; then
+cmd_status() {
   echo "$style"
-  exit 0
-fi
+}
 
-# Текущие значения для панели: JSON.
-if [[ $mode == values ]]; then
+cmd_values() {
+  local a b
   a=$(cat "$alpha_file" 2>/dev/null || true)
   valid_alpha_value "$a" || a=$( [[ $style == opaque ]] && echo 1.0 || echo 0.85 )
   b=$(cat "$blur_file" 2>/dev/null || echo 4)
   valid_blur "$b" || b=4
   jq -nc --argjson a "$a" --argjson b "$b" '{alpha:$a, blur:$b}'
-  exit 0
-fi
+}
 
-# Ползунок прозрачности: 0.30 … 1.0.
-if [[ $mode == alpha ]]; then
-  v=${2:-}
+cmd_alpha() {
+  local v=${1:-}
   valid_alpha_syntax "$v" || { echo "usage: glass-style alpha 0.30..1.0" >&2; exit 2; }
   valid_alpha_range "$v" || exit 2
   # В штатном стиле ползунки скрыты; запоздавший процесс от ползунка не должен
   # превратить непрозрачный стиль в прозрачный.
-  [[ $style == opaque ]] && exit 0
+  [[ $style == opaque ]] && return 0
   printf '%s\n' "$v" >"$alpha_file"
-  # Сначала foot.ini: install-config может перезапустить терминалы, и foot
-  # успеет прочитать предыдущую альфу, если записать её позже.
-  foot_set_alpha "$v"
+  foot_set_alpha
   # Оболочка сама следит за shell.toml — полная смена темы не нужна.
   "$ROOT/bin/install-config" --light "$v" >/dev/null 2>&1 || true
-  exit 0
-fi
+}
 
-# Ползунок блюра: 0 … 30.
-if [[ $mode == blur ]]; then
-  v=${2:-}
+cmd_blur() {
+  local v=${1:-} fb=no
   valid_blur "$v" || { echo "usage: glass-style blur 0..30" >&2; exit 2; }
   printf '%s\n' "$v" >"$blur_file"
   # Композитор отключает блюр при A=1.0, поэтому foot тоже не должен размывать.
-  fb=no
   [[ $style == glass ]] && (( v > 0 )) && fb=yes
   foot_set_blur "$fb"
   reload_hypr
-  exit 0
-fi
+}
 
-[[ $mode == glass || $mode == opaque ]] || { echo "usage: glass-style [glass|opaque|status|values|alpha <v>|blur <n>]" >&2; exit 2; }
+cmd_style() {
+  local s=$1 alpha=0.85
+  [[ $s == opaque ]] && alpha=1.0
+  printf '%s\n' "$s" >"$ST/glass-style"
+  rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
+  # Тумблер окон, конфиги и хуки ставит install-config.
+  "$ROOT/bin/install-config" "$alpha" >/dev/null 2>&1 || true
+  # Перезапуск оболочки не нужен: ~/.config/omarchy/shell.toml читается ей вживую.
+  foot_set_alpha
+  reload_hypr
+}
 
-# glass → 0.85, opaque → 1.0
-alpha=0.85
-[[ $mode == opaque ]] && alpha=1.0
-printf '%s\n' "$mode" >"$ST/glass-style"
-rm -f "$alpha_file"   # переключатель стиля сбрасывает ручную прозрачность
-
-# Тумблер окон, конфиги и хуки ставит install-config.
-"$ROOT/bin/install-config" "$alpha" >/dev/null 2>&1 || true
-
-# Перезапуск оболочки не нужен: ~/.config/omarchy/shell.toml читается ей вживую.
-foot_set_alpha "$alpha"
-reload_hypr
+case $mode in
+  status)  cmd_status ;;
+  values)  cmd_values ;;
+  alpha)   cmd_alpha "${2:-}" ;;
+  blur)    cmd_blur "${2:-}" ;;
+  glass|opaque) cmd_style "$mode" ;;
+  *) echo "usage: glass-style [glass|opaque|status|values|alpha <v>|blur <n>]" >&2; exit 2 ;;
+esac
