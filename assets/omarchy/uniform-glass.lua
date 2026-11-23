@@ -54,20 +54,10 @@ hl.window_rule({
   opacity = string.format("%.2f override %.2f override", A, A),
 })
 
--- Терминалы задают прозрачность фона сами (foot alpha=0.85): Hyprland
--- размывает только под поверхностями со своей alpha < 1. Поэтому здесь
--- композиторская opacity = 1, чтобы итог остался 0.85 и текст был резким.
+-- Folio тоже рисует фон сам (wrapper подставляет альфу в colors.toml).
 hl.window_rule({
-  name = "terminal-native-alpha",
-  match = { tag = "terminal" },
-  opacity = "1 override 1 override",
-})
-
--- Vesktop рисует прозрачность сам (тема Omarchy Glass), поэтому композиторская
--- opacity ему не нужна — иначе текст становится выцветшим, как у всех окон.
-hl.window_rule({
-  name = "vesktop-native-alpha",
-  match = { class = "vesktop" },
+  name = "folio-native-alpha",
+  match = { class = "folio" },
   opacity = "1 override 1 override",
 })
 

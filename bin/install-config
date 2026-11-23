@@ -45,25 +45,10 @@ p.write_text(text)
 PY
 }
 
-# Альфа поверхностей темы Omarchy Glass. Сама тема задаёт --oc-alpha с
-# fallback-значением, а здесь ползунок переопределяет его для Vencord.
-vesktop_alpha() {
-  local data=$HOME_DIR/.local/share/omarchy-glass dc
-  mkdir -p "$data"
-  # Discord рисует больше собственных слоёв, чем терминал, поэтому при том же
-  # ползунке его поверхности должны быть заметно прозрачнее. В штатном стиле
-  # (alpha = 1.0) оставляем сплошной цвет.
-  dc=$(awk -v a="$alpha" 'BEGIN { if (a >= 0.99) print a; else { v = a * 0.5; if (v < 0.05) v = 0.05; printf "%.2f", v } }')
-  printf ':root { --oc-alpha: %s; --dc-alpha: %s; }\n' "$alpha" "$dc" >"$data/alpha.css"
-  bash "$HOME_DIR/.config/omarchy/hooks/theme-set.d/omarchy-glass" \
-    "$(cat "$CURRENT_DIR/theme.name" 2>/dev/null || echo wallpaper-glass)" >/dev/null 2>&1 || true
-}
-
 if [[ ${1:-} == --light ]]; then
   alpha=${2:-$default_alpha}
   valid_alpha_value "$alpha" || alpha=$default_alpha
   shell_alpha
-  vesktop_alpha
   # Lua-конфиг Hyprland читает именно этот файл — держим его в синхроне с shell.toml.
   printf '%s\n' "$alpha" >"$STATE_DIR/glass-alpha"
   reload_hypr
@@ -109,10 +94,12 @@ deploy_assets() {
 }
 
 configure_vesktop() {
+  # Устаревший файл нативной альфы больше не используется.
+  rm -f "$HOME_DIR/.local/share/omarchy-glass/alpha.css"
   local vs=$HOME_DIR/.config/vesktop/settings/settings.json tmp
   [[ -f $vs ]] && command -v jq >/dev/null || return 0
   tmp=$(mktemp)
-  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = true' "$vs" >"$tmp"; then
+  if jq '.enabledThemes = ["omarchy-glass.theme.css"] | .transparent = false' "$vs" >"$tmp"; then
     mv "$tmp" "$vs"
   else
     rm -f "$tmp"
@@ -222,7 +209,6 @@ restore_blur() {
 migrate_state
 deploy_assets
 shell_alpha
-vesktop_alpha
 configure_vesktop
 configure_steam
 configure_folio
@@ -232,5 +218,6 @@ omarchy-bar background opaque >/dev/null 2>&1 || true
 install_theme
 install_lock
 refresh_theme
+foot_set_alpha 1.0   # после theme set: foot остаётся непрозрачным,透明度 даёт композитор
 apply_tools "$ROOT"
 restore_blur

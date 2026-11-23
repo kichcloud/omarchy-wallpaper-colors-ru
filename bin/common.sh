@@ -19,14 +19,14 @@ foot_files() {
     "$CURRENT_DIR/theme/foot.ini"
 }
 
+# foot больше не рисует прозрачность сам: альфа терминала фиксированно 1.0,
+# а прозрачность применяет композитор — как и к остальным окнам.
 foot_set_alpha() {
-  local value=$1 file
+  local file
   while IFS= read -r file; do
     [[ -f $file ]] || continue
-    sed -i -E "s/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\1$value/" "$file"
+    sed -i -E 's/^([[:space:]]*alpha[[:space:]]*=[[:space:]]*).*/\11.0/' "$file"
   done < <(foot_files)
-  # Запущенный foot не перечитывает конфиг: Omarchy умеет отправить ему OSC 11
-  # с альфой (urxvt-префикс [percent]). Это и даёт мгновенный эффект в терминале.
   if command -v omarchy-theme-set-foot >/dev/null 2>&1; then
     omarchy-theme-set-foot >/dev/null 2>&1 || true
   fi

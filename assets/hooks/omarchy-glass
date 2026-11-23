@@ -26,8 +26,6 @@ compose() {
     printf '\n'
   fi
   cat "$data/style.css"
-  # Переопределение --oc-alpha от ползунка, если плагин его записал.
-  [[ -f $data/alpha.css ]] && cat "$data/alpha.css"
 }
 
 body=$(compose) || exit 0

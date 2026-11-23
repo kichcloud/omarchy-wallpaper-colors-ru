@@ -513,22 +513,12 @@ body,
   pointer-events: none;
 }
 
-/* Базовый холст Electron тоже должен быть прозрачным: иначе полупрозрачные
-   поверхности накладываются на сплошной чёрный фон и обои не видны. */
-html,
-body,
-#app-mount {
-  background: transparent !important;
-}
-
-/* Поверхности самой темы: полупрозрачные, чтобы обои читались через клиент,
-   а текст оставался непрозрачным. Альфа задаётся здесь, в теме Omarchy Glass,
-   а не через композиторское затуманивание всего окна. */
+/* Поверхности темы сплошные: прозрачность окна задаёт композитор, как и у
+   остальных приложений. Нативная альфа Discord отключена. */
 :root {
-  --oc-alpha: 0.42;
-  --oc-s0: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
-  --oc-s1: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
-  --oc-s2: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
-  --oc-s3: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
-  --oc-s4: rgba(var(--oc-bg-rgb), var(--dc-alpha, var(--oc-alpha))) !important;
+  --oc-s0: var(--omacord-s0, #000000) !important;
+  --oc-s1: var(--omacord-s1, #0f1114) !important;
+  --oc-s2: var(--omacord-s2, #1a1c1f) !important;
+  --oc-s3: var(--omacord-s3, #26282b) !important;
+  --oc-s4: var(--omacord-s4, #323437) !important;
 }
