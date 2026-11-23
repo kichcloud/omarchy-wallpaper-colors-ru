@@ -135,6 +135,14 @@ configure_folio() {
   [[ -f $src ]] || return 0
   mkdir -p "$HOME_DIR/.local/bin"
   install -m755 "$src" "$dst"
+  # ~/.local/bin идёт после /usr/bin в PATH, поэтому команда `folio` находится
+  # оригинал. Явно направляем обе привязки файлового менеджера на wrapper.
+  local b=$HOME_DIR/.config/hypr/bindings.lua
+  [[ -f $b ]] || return 0
+  sed -i \
+    -e "s|launch = \"folio\"|launch = \"$dst\"|g" \
+    -e "s|uwsm-app -- folio|uwsm-app -- $dst|g" \
+    "$b"
 }
 
 configure_osd() {
